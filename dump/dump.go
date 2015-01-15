@@ -16,10 +16,13 @@ type Dumper struct {
 	User     string
 	Password string
 
-	// Key is db name, value is tables, will override Databases
-	Tables map[string][]string
+	// Will override Databases
+	Tables  []string
+	TableDB string
 
 	Databases []string
+
+	IgnoreTables map[string][]string
 }
 
 func NewDumper(executionPath string, addr string, user string, password string) (*Dumper, error) {
@@ -33,24 +36,30 @@ func NewDumper(executionPath string, addr string, user string, password string) 
 	d.Addr = addr
 	d.User = user
 	d.Password = password
-	d.Tables = make(map[string][]string, 16)
+	d.Tables = make([]string, 0, 16)
 	d.Databases = make([]string, 0, 16)
+	d.IgnoreTables = make(map[string][]string)
 
 	return d, nil
 }
 
-func (d *Dumper) AddDatabase(db string) {
-	d.Databases = append(d.Databases, db)
+func (d *Dumper) AddDatabase(dbs ...string) {
+	d.Databases = append(d.Databases, dbs...)
 }
 
-func (d *Dumper) AddTable(db string, table string) {
-	ts, ok := d.Tables[db]
-	if !ok {
-		ts = []string{table}
-	} else {
-		ts = append(ts, table)
+func (d *Dumper) AddTable(db string, tables ...string) {
+	if d.TableDB != db {
+		d.TableDB = db
+		d.Tables = d.Tables[0:0]
 	}
-	d.Tables[db] = []string{table}
+
+	d.Tables = append(d.Tables, tables...)
+}
+
+func (d *Dumper) AddIgnoreTables(db string, tables ...string) {
+	t, _ := d.IgnoreTables[db]
+	t = append(t, tables...)
+	d.IgnoreTables[db] = t
 }
 
 func (d *Dumper) Dump(w io.Writer) error {
@@ -69,11 +78,22 @@ func (d *Dumper) Dump(w io.Writer) error {
 	args = append(args, "--master-data=2")
 	args = append(args, "--single-transaction")
 	args = append(args, "--skip-lock-tables")
+
+	// Disable uncessary data
 	args = append(args, "--compact")
-	args = append(args, "--skip-add-locks")
+	args = append(args, "--skip-opt")
+
+	// We only care about data
+	args = append(args, "--no-create-info")
 
 	// Multi row is easy for us to parse the data
 	args = append(args, "--skip-extended-insert")
+
+	for db, tables := range d.IgnoreTables {
+		for _, table := range tables {
+			args = append(args, fmt.Sprintf("--ignore-table=%s.%s", db, table))
+		}
+	}
 
 	if len(d.Tables) == 0 && len(d.Databases) == 0 {
 		args = append(args, "--all-databases")
@@ -81,20 +101,13 @@ func (d *Dumper) Dump(w io.Writer) error {
 		args = append(args, "--databases")
 		args = append(args, d.Databases...)
 	} else {
-		// tables will override databases
-		if len(d.Tables) == 1 {
-			for db, tables := range d.Tables {
-				args = append(args, db)
-				args = append(args, tables...)
-			}
-		} else {
-			args = append(args, "--tables")
-			for db, tables := range d.Tables {
-				for _, table := range tables {
-					args = append(args, fmt.Sprintf("%s.%s", db, table))
-				}
-			}
-		}
+		args = append(args, d.TableDB)
+		args = append(args, d.Tables...)
+
+		// If we only dump some tables, the dump data will not have database name
+		// which makes us hard to parse, so here we add it manually.
+
+		w.Write([]byte(fmt.Sprintf("USE `%s`;\n", d.TableDB)))
 	}
 
 	cmd := exec.Command(d.ExecutionPath, args...)
