@@ -1,0 +1,16 @@
+[[rule]]
+schema = "test"
+table = "go-mysql1"
+index = "go-mysql1"
+type = "go-mysql1"
+
+    # name is MySQL table field name, title is Elasticsearch field name
+    [rule.mapping]
+    name = "title"
+
+[[rule]]
+schema = "test"
+table = "go-mysql2"
+index = "go-mysql2"
+type = "go-mysql2"
+
