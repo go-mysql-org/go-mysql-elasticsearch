@@ -71,3 +71,27 @@ func (s *mappingTestSuite) TestRule(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(rules.Rules, HasLen, 2)
 }
+
+func (s *mappingTestSuite) TestSearch(c *C) {
+	var rules Rules
+	rules.Rules = append(rules.Rules, &Rule{"a", "a", "a", "a", nil, nil},
+		&Rule{"b", "b", "b", "b", nil, nil},
+		&Rule{"b", "c", "c", "c", nil, nil},
+		&Rule{"a", "d", "d", "d", nil, nil},
+		&Rule{"a", "e", "e", "e", nil, nil})
+
+	r := rules.GetRule("a", "a")
+	c.Assert(r, NotNil)
+
+	r = rules.GetRule("a", "c")
+	c.Assert(r, IsNil)
+
+	r = rules.GetRule("b", "c")
+	c.Assert(r, NotNil)
+
+	r = rules.GetRule("b", "b")
+	c.Assert(r, NotNil)
+
+	r = rules.GetRule("b", "a")
+	c.Assert(r, IsNil)
+}

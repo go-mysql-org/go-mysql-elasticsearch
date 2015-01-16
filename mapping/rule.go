@@ -2,7 +2,9 @@ package mapping
 
 import (
 	"github.com/BurntSushi/toml"
+	"github.com/siddontang/go-mysql/schema"
 	"io/ioutil"
+	"sort"
 )
 
 // If you want to sync MySQL data into elasticsearch, you must set a rule to let use know how to do it.
@@ -17,12 +19,34 @@ type Rule struct {
 	// Default, a MySQL table field name is mapped to Elasticsearch field name.
 	// Sometimes, you want to use different name, e.g, the MySQL file name is title,
 	// but in Elasticsearch, you want to name it my_title.
-	// If you want to custom the field mapping, set it below.
 	FieldMapping map[string]string `toml:"mapping"`
+
+	// MySQL table information
+	TableInfo *schema.Table
+}
+
+type RuleSlice []*Rule
+
+func (rs RuleSlice) Len() int {
+	return len(rs)
+}
+
+func (rs RuleSlice) Less(i, j int) bool {
+	if rs[i].Schema < rs[j].Schema {
+		return true
+	} else if rs[i].Schema > rs[j].Schema {
+		return false
+	} else {
+		return rs[i].Table < rs[j].Table
+	}
+}
+
+func (rs RuleSlice) Swap(i, j int) {
+	rs[i], rs[j] = rs[j], rs[i]
 }
 
 type Rules struct {
-	Rules []*Rule `toml:"rule"`
+	Rules RuleSlice `toml:"rule"`
 }
 
 func LoadRules(data []byte) (*Rules, error) {
@@ -32,6 +56,10 @@ func LoadRules(data []byte) (*Rules, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	sort.Sort(rules.Rules)
+
+	// todo, check invalid config
 
 	return &rules, nil
 }
@@ -45,5 +73,16 @@ func LoadRulesWithFile(file string) (*Rules, error) {
 }
 
 func (r *Rules) GetRule(schema string, table string) *Rule {
-	return nil
+	i := sort.Search(len(r.Rules), func(i int) bool {
+		if r.Rules[i].Schema == schema {
+			return r.Rules[i].Table >= table
+		} else {
+			return r.Rules[i].Schema > schema
+		}
+	})
+	if i < len(r.Rules) && r.Rules[i].Schema == schema && r.Rules[i].Table == table {
+		return r.Rules[i]
+	} else {
+		return nil
+	}
 }
