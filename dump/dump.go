@@ -23,6 +23,8 @@ type Dumper struct {
 	Databases []string
 
 	IgnoreTables map[string][]string
+
+	ErrOut io.Writer
 }
 
 func NewDumper(executionPath string, addr string, user string, password string) (*Dumper, error) {
@@ -40,14 +42,20 @@ func NewDumper(executionPath string, addr string, user string, password string) 
 	d.Databases = make([]string, 0, 16)
 	d.IgnoreTables = make(map[string][]string)
 
+	d.ErrOut = os.Stderr
+
 	return d, nil
 }
 
-func (d *Dumper) AddDatabase(dbs ...string) {
+func (d *Dumper) SetErrOut(o io.Writer) {
+	d.ErrOut = o
+}
+
+func (d *Dumper) AddDatabases(dbs ...string) {
 	d.Databases = append(d.Databases, dbs...)
 }
 
-func (d *Dumper) AddTable(db string, tables ...string) {
+func (d *Dumper) AddTables(db string, tables ...string) {
 	if d.TableDB != db {
 		d.TableDB = db
 		d.Tables = d.Tables[0:0]
@@ -60,6 +68,13 @@ func (d *Dumper) AddIgnoreTables(db string, tables ...string) {
 	t, _ := d.IgnoreTables[db]
 	t = append(t, tables...)
 	d.IgnoreTables[db] = t
+}
+
+func (d *Dumper) Reset() {
+	d.Tables = d.Tables[0:0]
+	d.TableDB = ""
+	d.IgnoreTables = make(map[string][]string)
+	d.Databases = d.Databases[0:0]
 }
 
 func (d *Dumper) Dump(w io.Writer) error {
@@ -75,7 +90,7 @@ func (d *Dumper) Dump(w io.Writer) error {
 	args = append(args, fmt.Sprintf("--user=%s", d.User))
 	args = append(args, fmt.Sprintf("--password=%s", d.Password))
 
-	args = append(args, "--master-data=2")
+	args = append(args, "--master-data")
 	args = append(args, "--single-transaction")
 	args = append(args, "--skip-lock-tables")
 
@@ -112,7 +127,7 @@ func (d *Dumper) Dump(w io.Writer) error {
 
 	cmd := exec.Command(d.ExecutionPath, args...)
 
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = d.ErrOut
 	cmd.Stdout = w
 
 	return cmd.Run()

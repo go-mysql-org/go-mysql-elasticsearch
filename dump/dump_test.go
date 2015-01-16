@@ -6,12 +6,14 @@ import (
 	"github.com/siddontang/go-mysql/client"
 	. "gopkg.in/check.v1"
 	"io/ioutil"
-	"os"
+	//"os"
+	"bytes"
 	"testing"
 )
 
 // use docker mysql for test
 var host = flag.String("host", "127.0.0.1", "MySQL host")
+var port = flag.Int("port", 3306, "MySQL host")
 
 var execution = flag.String("exec", "mysqldump", "mysqldump execution path")
 
@@ -28,11 +30,13 @@ var _ = Suite(&schemaTestSuite{})
 
 func (s *schemaTestSuite) SetUpSuite(c *C) {
 	var err error
-	s.conn, err = client.Connect(fmt.Sprintf("%s:3306", *host), "root", "", "")
+	s.conn, err = client.Connect(fmt.Sprintf("%s:%d", *host, *port), "root", "", "")
 	c.Assert(err, IsNil)
 
-	s.d, err = NewDumper(*execution, fmt.Sprintf("%s:3306", *host), "root", "")
+	s.d, err = NewDumper(*execution, fmt.Sprintf("%s:%d", *host, *port), "root", "")
 	c.Assert(err, IsNil)
+
+	s.d.SetErrOut(ioutil.Discard)
 
 	_, err = s.conn.Execute("CREATE DATABASE IF NOT EXISTS test1")
 	c.Assert(err, IsNil)
@@ -85,18 +89,45 @@ func (s *schemaTestSuite) TearDownSuite(c *C) {
 }
 
 func (s *schemaTestSuite) TestDump(c *C) {
+	c.Skip("skip now")
+
 	err := s.d.Dump(ioutil.Discard)
 	c.Assert(err, IsNil)
 
-	s.d.AddDatabase("test1", "test2")
+	s.d.AddDatabases("test1", "test2")
 
 	s.d.AddIgnoreTables("test1", "t2")
 
 	err = s.d.Dump(ioutil.Discard)
 	c.Assert(err, IsNil)
 
-	s.d.AddTable("test1", "t1")
+	s.d.AddTables("test1", "t1")
 
-	err = s.d.Dump(os.Stdout)
+	err = s.d.Dump(ioutil.Discard)
+	c.Assert(err, IsNil)
+}
+
+type testParseHandler struct {
+}
+
+func (h *testParseHandler) BinLog(name string, pos uint64) error {
+	return nil
+}
+
+func (h *testParseHandler) Data(schema string, table string, values []string) error {
+	return nil
+}
+
+func (s *schemaTestSuite) TestParse(c *C) {
+	var buf bytes.Buffer
+
+	s.d.Reset()
+
+	s.d.AddDatabases("test1", "test2")
+
+	err := s.d.Dump(&buf)
+	c.Assert(err, IsNil)
+
+	err = Parse(&buf, new(testParseHandler))
 	c.Assert(err, IsNil)
 }
