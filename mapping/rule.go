@@ -59,6 +59,16 @@ func LoadRules(data []byte) (*Rules, error) {
 
 	sort.Sort(rules.Rules)
 
+	for _, rule := range rules.Rules {
+		if len(rule.Index) == 0 {
+			rule.Index = rule.Table
+		}
+
+		if len(rule.Type) == 0 {
+			rule.Type = rule.Index
+		}
+	}
+
 	// todo, check invalid config
 
 	return &rules, nil
