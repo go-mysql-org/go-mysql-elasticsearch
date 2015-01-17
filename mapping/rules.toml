@@ -1,20 +1,21 @@
 [[rule]]
 schema = "test"
 table = "go-mysql1"
-
-# if index is empty, use table as default
 index = "go-mysql1"
-
-# if type is empty, use index as default
 type = "go-mysql1"
 
-    # custom MySQL field name <-> Elasticsearch field name
+    # name is MySQL table field name, name1 is customized Elasticsearch field name
     [rule.mapping]
-    name = "title"
+    name = "name1"
 
 [[rule]]
+# no field mapping, use default MySQL field <-> Elasticsearch field
 schema = "test"
 table = "go-mysql2"
 index = "go-mysql2"
 type = "go-mysql2"
 
+[[rule]]
+# no index and type, both use table instead,
+schema = "test"
+table = "go-mysql3"
