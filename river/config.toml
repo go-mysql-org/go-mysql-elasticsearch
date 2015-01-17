@@ -1,0 +1,38 @@
+# MySQL address, user and password
+my_addr = "127.0.0.1:3306"
+my_user = "root"
+my_pass = ""
+
+# Elasticsearch address
+es_addr = "127.0.0.1:9200"
+
+# Path to store data, like master.info, and dump MySQL data 
+data_dir = "./var"
+
+# pseudo server id like a slave 
+server_id = 1001
+
+# mysql or mariadb
+flavor = "mysql"
+
+# mysqldump execution path
+mysqldump = "mysqldump"
+
+# MySQL data source
+[[source]]
+schema = "test"
+
+# Only below tables will be synced to Elasticsearch, seperated by comma.
+# I don't think it is necessary to sync all tables in a database.
+tables = "es_test"
+
+# Below is for special rule mapping
+[[rule]]
+schema = "test"
+table = "es_test"
+index = "es_test"
+type = "es_test"
+
+    [rule.mapping]
+    name = "es_name"
+

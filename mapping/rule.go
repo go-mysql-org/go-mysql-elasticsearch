@@ -1,10 +1,7 @@
 package mapping
 
 import (
-	"github.com/BurntSushi/toml"
 	"github.com/siddontang/go-mysql/schema"
-	"io/ioutil"
-	"sort"
 )
 
 // If you want to sync MySQL data into elasticsearch, you must set a rule to let use know how to do it.
@@ -25,41 +22,22 @@ type Rule struct {
 	TableInfo *schema.Table
 }
 
-type RuleSlice []*Rule
+func NewDefaultRule(schema string, table string) *Rule {
+	r := new(Rule)
 
-func (rs RuleSlice) Len() int {
-	return len(rs)
+	r.Schema = schema
+	r.Table = table
+	r.Index = table
+	r.Type = table
+	r.FieldMapping = make(map[string]string)
+
+	return r
 }
 
-func (rs RuleSlice) Less(i, j int) bool {
-	if rs[i].Schema < rs[j].Schema {
-		return true
-	} else if rs[i].Schema > rs[j].Schema {
-		return false
-	} else {
-		return rs[i].Table < rs[j].Table
-	}
-}
+type Rules []*Rule
 
-func (rs RuleSlice) Swap(i, j int) {
-	rs[i], rs[j] = rs[j], rs[i]
-}
-
-type Rules struct {
-	Rules RuleSlice `toml:"rule"`
-}
-
-func LoadRules(data []byte) (*Rules, error) {
-	var rules Rules
-
-	_, err := toml.Decode(string(data), &rules)
-	if err != nil {
-		return nil, err
-	}
-
-	sort.Sort(rules.Rules)
-
-	for _, rule := range rules.Rules {
+func (r Rules) Prepare() error {
+	for _, rule := range r {
 		if len(rule.Index) == 0 {
 			rule.Index = rule.Table
 		}
@@ -68,31 +46,5 @@ func LoadRules(data []byte) (*Rules, error) {
 			rule.Type = rule.Index
 		}
 	}
-
-	// todo, check invalid config
-
-	return &rules, nil
-}
-
-func LoadRulesWithFile(file string) (*Rules, error) {
-	data, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-	return LoadRules(data)
-}
-
-func (r *Rules) GetRule(schema string, table string) *Rule {
-	i := sort.Search(len(r.Rules), func(i int) bool {
-		if r.Rules[i].Schema == schema {
-			return r.Rules[i].Table >= table
-		} else {
-			return r.Rules[i].Schema > schema
-		}
-	})
-	if i < len(r.Rules) && r.Rules[i].Schema == schema && r.Rules[i].Table == table {
-		return r.Rules[i]
-	} else {
-		return nil
-	}
+	return nil
 }

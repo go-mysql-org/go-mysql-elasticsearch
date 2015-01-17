@@ -42,7 +42,9 @@ func (s *mappingTestSuite) TestRule(c *C) {
 	c.Assert(rule.Schema, Equals, "test")
 	c.Assert(rule.FieldMapping, DeepEquals, map[string]string{"a": "ab", "b": "bb"})
 
-	var rules Rules
+	var rules struct {
+		Rules `toml:"rule"`
+	}
 
 	str = `
     [[rule]]
@@ -70,28 +72,4 @@ func (s *mappingTestSuite) TestRule(c *C) {
 	_, err = toml.Decode(str, &rules)
 	c.Assert(err, IsNil)
 	c.Assert(rules.Rules, HasLen, 2)
-}
-
-func (s *mappingTestSuite) TestSearch(c *C) {
-	var rules Rules
-	rules.Rules = append(rules.Rules, &Rule{"a", "a", "a", "a", nil, nil},
-		&Rule{"b", "b", "b", "b", nil, nil},
-		&Rule{"b", "c", "c", "c", nil, nil},
-		&Rule{"a", "d", "d", "d", nil, nil},
-		&Rule{"a", "e", "e", "e", nil, nil})
-
-	r := rules.GetRule("a", "a")
-	c.Assert(r, NotNil)
-
-	r = rules.GetRule("a", "c")
-	c.Assert(r, IsNil)
-
-	r = rules.GetRule("b", "c")
-	c.Assert(r, NotNil)
-
-	r = rules.GetRule("b", "b")
-	c.Assert(r, NotNil)
-
-	r = rules.GetRule("b", "a")
-	c.Assert(r, IsNil)
 }
