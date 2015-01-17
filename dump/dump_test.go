@@ -89,8 +89,6 @@ func (s *schemaTestSuite) TearDownSuite(c *C) {
 }
 
 func (s *schemaTestSuite) TestDump(c *C) {
-	c.Skip("skip now")
-
 	err := s.d.Dump(ioutil.Discard)
 	c.Assert(err, IsNil)
 

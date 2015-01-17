@@ -107,7 +107,7 @@ func parseValues(str string) []string {
 			for ; !(str[j] == '\'' && last != '\\'); j++ {
 				last = str[j]
 			}
-			values = append(values, str[i+1:j])
+			values = append(values, str[i:j+1])
 			// skip ' and ,
 			i = j + 2
 		}
