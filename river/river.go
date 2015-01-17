@@ -172,11 +172,18 @@ func (r *River) Run() error {
 		return err
 	}
 
+	if err := r.sync(); err != nil {
+		log.Errorf("sync binlog error %v", err)
+		return err
+	}
+
 	return nil
 }
 
 func (r *River) Close() {
 	close(r.quit)
+
+	r.syncer.Close()
 
 	r.wg.Wait()
 }
