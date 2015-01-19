@@ -79,8 +79,7 @@ func NewRiver(c *Config) (*River, error) {
 func (r *River) prepareRule() error {
 	// first, check sources
 	for _, s := range r.c.Sources {
-		tables := strings.Split(s.Tables, ",")
-		for _, table := range tables {
+		for _, table := range s.Tables {
 			key := ruleKey(s.Schema, table)
 
 			if _, ok := r.rules[key]; ok {

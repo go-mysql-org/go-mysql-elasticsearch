@@ -34,7 +34,7 @@ data_dir = "./var"
 
 [[source]]
 schema = "test"
-tables = "es_test"
+tables = ["es_test"]
 
 [[rule]]
 schema = "test"

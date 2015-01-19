@@ -22,9 +22,9 @@ mysqldump = "mysqldump"
 [[source]]
 schema = "test"
 
-# Only below tables will be synced to Elasticsearch, seperated by comma.
+# Only below tables will be synced to Elasticsearch.
 # I don't think it is necessary to sync all tables in a database.
-tables = "es_test"
+tables = ["es_test"]
 
 # Below is for special rule mapping
 [[rule]]

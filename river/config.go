@@ -9,8 +9,8 @@ import (
 )
 
 type SourceConfig struct {
-	Schema string `toml:"schema"`
-	Tables string `toml:"tables"`
+	Schema string   `toml:"schema"`
+	Tables []string `toml:"tables"`
 }
 
 type Config struct {
