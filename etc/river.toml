@@ -24,15 +24,16 @@ schema = "test"
 
 # Only below tables will be synced to Elasticsearch.
 # I don't think it is necessary to sync all tables in a database.
-tables = ["es_test"]
+tables = ["test_river"]
 
 # Below is for special rule mapping
 [[rule]]
 schema = "test"
-table = "es_test"
-index = "es_test"
-type = "es_test"
+table = "test_river"
+index = "river"
+type = "river"
 
-    [rule.mapping]
-    name = "es_name"
+    # title is MySQL es_test field name, es_tiel is your customized name in Elasticsearch
+    [rule.field]
+    title = "es_title"
 

@@ -3,7 +3,6 @@ package river
 import (
 	"bytes"
 	"github.com/BurntSushi/toml"
-	"github.com/siddontang/go-mysql-elasticsearch/mapping"
 	"github.com/siddontang/go/ioutil2"
 	"io/ioutil"
 )
@@ -28,7 +27,7 @@ type Config struct {
 
 	Sources []SourceConfig `toml:"source"`
 
-	Rules mapping.Rules `toml:"rule"`
+	Rules Rules `toml:"rule"`
 }
 
 func NewConfigWithFile(name string) (*Config, error) {

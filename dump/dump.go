@@ -28,6 +28,10 @@ type Dumper struct {
 }
 
 func NewDumper(executionPath string, addr string, user string, password string) (*Dumper, error) {
+	if len(executionPath) == 0 {
+		executionPath = "mysqldump"
+	}
+
 	path, err := exec.LookPath(executionPath)
 	if err != nil {
 		return nil, err

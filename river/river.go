@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/siddontang/go-mysql-elasticsearch/dump"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
-	"github.com/siddontang/go-mysql-elasticsearch/mapping"
 	"github.com/siddontang/go-mysql/client"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go/log"
@@ -23,7 +22,7 @@ type River struct {
 
 	m *MasterInfo
 
-	rules map[string]*mapping.Rule
+	rules map[string]*Rule
 
 	quit chan struct{}
 	wg   sync.WaitGroup
@@ -33,16 +32,22 @@ type River struct {
 	es     *elastic.Client
 
 	parser *parseHandler
+
+	binlogStartCh chan struct{}
 }
 
 func NewRiver(c *Config) (*River, error) {
 	r := new(River)
 
+	r.c = c
+
 	r.quit = make(chan struct{})
 
-	r.rules = make(map[string]*mapping.Rule)
+	r.rules = make(map[string]*Rule)
 
 	r.parser = &parseHandler{r, "", 0}
+
+	r.binlogStartCh = make(chan struct{})
 
 	os.MkdirAll(c.DataDir, 0755)
 
@@ -51,7 +56,7 @@ func NewRiver(c *Config) (*River, error) {
 		return nil, err
 	}
 
-	if err = r.fetchTableInfo(); err != nil {
+	if err = r.initFromMySQL(); err != nil {
 		return nil, err
 	}
 
@@ -86,7 +91,7 @@ func (r *River) prepareRule() error {
 				return fmt.Errorf("duplicate source %s, %s defined in config", s.Schema, table)
 			}
 
-			rule := mapping.NewDefaultRule(s.Schema, table)
+			rule := newDefaultRule(s.Schema, table)
 
 			r.rules[key] = rule
 		}
@@ -100,7 +105,7 @@ func (r *River) prepareRule() error {
 		return nil
 	}
 
-	r.c.Rules.Prepare()
+	r.c.Rules.prepare()
 
 	// then, set custom mapping rule
 	for _, rule := range r.c.Rules {
@@ -117,7 +122,7 @@ func (r *River) prepareRule() error {
 	return nil
 }
 
-func (r *River) fetchTableInfo() error {
+func (r *River) initFromMySQL() error {
 	c, err := client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, "")
 	if err != nil {
 		return err
@@ -125,9 +130,22 @@ func (r *River) fetchTableInfo() error {
 
 	defer c.Close()
 
+	res, err := c.Execute(`SHOW GLOBAL VARIABLES LIKE "binlog_format";`)
+	if err != nil {
+		return err
+	} else if f, _ := res.GetString(0, 1); f != "ROW" {
+		return fmt.Errorf("binlog must ROW format, but %s now", f)
+	}
+
 	for _, rule := range r.rules {
 		if err = rule.FetchTableInfo(c); err != nil {
 			return err
+		}
+
+		// table must have a PK for one column, multi columns may be supported later.
+
+		if len(rule.TableInfo.PKColumns) != 1 {
+			return fmt.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
 		}
 	}
 
@@ -171,7 +189,9 @@ func (r *River) Run() error {
 		return err
 	}
 
-	if err := r.sync(); err != nil {
+	close(r.binlogStartCh)
+
+	if err := r.syncBinlog(); err != nil {
 		log.Errorf("sync binlog error %v", err)
 		return err
 	}
@@ -185,4 +205,6 @@ func (r *River) Close() {
 	r.syncer.Close()
 
 	r.wg.Wait()
+
+	r.m.Save(r.masterInfoPath())
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/siddontang/go-mysql-elasticsearch/dump"
 	"github.com/siddontang/go-mysql/schema"
 	"github.com/siddontang/go/log"
+	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
@@ -28,6 +29,7 @@ func (h *parseHandler) Data(db string, table string, values []string) error {
 	rule, ok := h.r.rules[ruleKey(db, table)]
 	if !ok {
 		// no rule, skip this data
+		log.Warnf("no rule for %s.%s", db, table)
 		return nil
 	}
 
@@ -60,12 +62,17 @@ func (h *parseHandler) Data(db string, table string, values []string) error {
 		}
 	}
 
+	if err := h.r.syncDocument(rule, syncInsertDoc, vs, nil); err != nil {
+		log.Errorf("dump: sync doc %v error %v", values, err)
+	}
+
 	return nil
 }
 
 func (r *River) tryDump() error {
 	if len(r.m.Name) > 0 && r.m.Position > 0 {
 		// we will sync with binlog name and position
+		log.Infof("skip dump, use last binlog replication pos (%s, %d)", r.m.Name, r.m.Position)
 		return nil
 	}
 
@@ -74,7 +81,10 @@ func (r *River) tryDump() error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		f.Close()
+		os.Remove(name)
+	}()
 
 	var db string
 	dbs := map[string]struct{}{}
@@ -98,9 +108,14 @@ func (r *River) tryDump() error {
 		r.dumper.AddDatabases(keys...)
 	}
 
+	r.dumper.SetErrOut(ioutil.Discard)
+
+	log.Info("try dump MySQL")
 	if err = r.dumper.Dump(f); err != nil {
 		return err
 	}
+
+	log.Info("dump MySQL OK, try parse")
 
 	f.Seek(0, 0)
 
@@ -108,6 +123,8 @@ func (r *River) tryDump() error {
 	if err = dump.Parse(f, r.parser); err != nil {
 		return err
 	}
+
+	log.Infof("parse dump MySQL data OK, start binlog replication at (%s, %d)", r.parser.name, r.parser.pos)
 
 	// set binlog information for sync
 	r.m.Addr = r.c.MyAddr
