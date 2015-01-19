@@ -17,12 +17,28 @@ type parseHandler struct {
 
 	name string
 	pos  uint64
+
+	rule *Rule
+	rows [][]interface{}
 }
 
 func (h *parseHandler) BinLog(name string, pos uint64) error {
 	h.name = name
 	h.pos = pos
 	return nil
+}
+
+func (h *parseHandler) trySyncDoc(force bool) {
+	if h.rule == nil {
+		return
+	}
+
+	if len(h.rows) > 10 || (force && len(h.rows) > 0) {
+		if err := h.r.syncDocument(h.rule, syncInsertDoc, h.rows); err != nil {
+			log.Errorf("sync %d docs %v error %v", len(h.rows), h.rows, err)
+		}
+		h.rows = h.rows[0:0]
+	}
 }
 
 func (h *parseHandler) Data(db string, table string, values []string) error {
@@ -32,6 +48,10 @@ func (h *parseHandler) Data(db string, table string, values []string) error {
 		log.Warnf("no rule for %s.%s", db, table)
 		return nil
 	}
+
+	h.trySyncDoc(rule != h.rule)
+
+	h.rule = rule
 
 	vs := make([]interface{}, len(values))
 
@@ -62,9 +82,7 @@ func (h *parseHandler) Data(db string, table string, values []string) error {
 		}
 	}
 
-	if err := h.r.syncDocument(rule, syncInsertDoc, vs, nil); err != nil {
-		log.Errorf("dump: sync doc %v error %v", values, err)
-	}
+	h.rows = append(h.rows, vs)
 
 	return nil
 }
@@ -123,6 +141,8 @@ func (r *River) tryDump() error {
 	if err = dump.Parse(f, r.parser); err != nil {
 		return err
 	}
+
+	r.parser.trySyncDoc(true)
 
 	log.Infof("parse dump MySQL data OK, start binlog replication at (%s, %d)", r.parser.name, r.parser.pos)
 

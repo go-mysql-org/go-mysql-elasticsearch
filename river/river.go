@@ -33,6 +33,7 @@ type River struct {
 
 	parser *parseHandler
 
+	// for test only
 	binlogStartCh chan struct{}
 }
 
@@ -45,22 +46,27 @@ func NewRiver(c *Config) (*River, error) {
 
 	r.rules = make(map[string]*Rule)
 
-	r.parser = &parseHandler{r, "", 0}
+	r.parser = &parseHandler{r: r, rows: make([][]interface{}, 0, 10)}
 
 	r.binlogStartCh = make(chan struct{})
 
 	os.MkdirAll(c.DataDir, 0755)
 
-	var err error
-	if err = r.prepareRule(); err != nil {
+	conn, err := client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, "")
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	if err = r.checkBinlogFormat(conn); err != nil {
 		return nil, err
 	}
 
-	if err = r.initFromMySQL(); err != nil {
+	if err = r.prepareRule(conn); err != nil {
 		return nil, err
 	}
 
-	if r.m, err = LoadMasterInfo(r.masterInfoPath()); err != nil {
+	if r.m, err = loadMasterInfo(r.masterInfoPath()); err != nil {
 		return nil, err
 	} else if len(r.m.Addr) != 0 && r.m.Addr != r.c.MyAddr {
 		log.Infof("MySQL addr %s in old master.info, but new %s, reset", r.m.Addr, r.c.MyAddr)
@@ -81,7 +87,7 @@ func NewRiver(c *Config) (*River, error) {
 	return r, nil
 }
 
-func (r *River) prepareRule() error {
+func (r *River) prepareRule(c *client.Conn) error {
 	// first, check sources
 	for _, s := range r.c.Sources {
 		for _, table := range s.Tables {
@@ -101,44 +107,24 @@ func (r *River) prepareRule() error {
 		return fmt.Errorf("no source data defined")
 	}
 
-	if r.c.Rules == nil {
-		return nil
-	}
+	if r.c.Rules != nil {
+		r.c.Rules.prepare()
 
-	r.c.Rules.prepare()
+		// then, set custom mapping rule
+		for _, rule := range r.c.Rules {
+			key := ruleKey(rule.Schema, rule.Table)
 
-	// then, set custom mapping rule
-	for _, rule := range r.c.Rules {
-		key := ruleKey(rule.Schema, rule.Table)
+			if _, ok := r.rules[key]; !ok {
+				return fmt.Errorf("rule %s, %s not defined in source", rule.Schema, rule.Table)
+			}
 
-		if _, ok := r.rules[key]; !ok {
-			return fmt.Errorf("rule %s, %s not defined in source", rule.Schema, rule.Table)
+			// use cusstom rule
+			r.rules[key] = rule
 		}
-
-		// use cusstom rule
-		r.rules[key] = rule
-	}
-
-	return nil
-}
-
-func (r *River) initFromMySQL() error {
-	c, err := client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, "")
-	if err != nil {
-		return err
-	}
-
-	defer c.Close()
-
-	res, err := c.Execute(`SHOW GLOBAL VARIABLES LIKE "binlog_format";`)
-	if err != nil {
-		return err
-	} else if f, _ := res.GetString(0, 1); f != "ROW" {
-		return fmt.Errorf("binlog must ROW format, but %s now", f)
 	}
 
 	for _, rule := range r.rules {
-		if err = rule.FetchTableInfo(c); err != nil {
+		if err := rule.fetchTableInfo(c); err != nil {
 			return err
 		}
 
@@ -149,7 +135,18 @@ func (r *River) initFromMySQL() error {
 		}
 	}
 
-	return err
+	return nil
+}
+
+func (r *River) checkBinlogFormat(c *client.Conn) error {
+	res, err := c.Execute(`SHOW GLOBAL VARIABLES LIKE "binlog_format";`)
+	if err != nil {
+		return err
+	} else if f, _ := res.GetString(0, 1); f != "ROW" {
+		return fmt.Errorf("binlog must ROW format, but %s now", f)
+	}
+
+	return nil
 }
 
 func (r *River) prepareSyncer() error {

@@ -56,7 +56,7 @@ type MasterInfo struct {
 	Position uint64 `toml:"bin_pos"`
 }
 
-func LoadMasterInfo(name string) (*MasterInfo, error) {
+func loadMasterInfo(name string) (*MasterInfo, error) {
 	var m MasterInfo
 	if !ioutil2.FileExists(name) {
 		return &m, nil
