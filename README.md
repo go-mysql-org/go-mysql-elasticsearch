@@ -1,11 +1,11 @@
 go-mysql-elasticsearch is a service to sync your MySQL data into Elastissearch automatically. 
 
-It uses mysqldump to fetch data at first, then syncs data incrementally with binlog.
+It uses `mysqldump` to fetch the origin data at first, then syncs data incrementally with binlog.
 
-## Use
+## How to use?
 
-+ Create your MySQL table.
-+ Create the associated Elasticsearch index, document type and mappings if possible, if not, go-mysql-elasticsearch will create index and type automatically with default mapping.
++ Create table in MySQL.
++ Create the associated Elasticsearch index, document type and mappings if possible, if not, Elasticsearch will create these automatically.
 + Set MySQL source in config file, see [Source](#Source) below.
 + Custom MySQL and Elasticsearch mapping rule in config file, see [Rule](#Rule) below.
 + Start `go-mysql-elasticsearch` and enjoy it.
@@ -15,9 +15,9 @@ It uses mysqldump to fetch data at first, then syncs data incrementally with bin
 + binlog format must be **row**.
 + binlog row image may be **full** for MySQL. (MariaDB only supports full row image).
 + Can not alter table format at runtime.
-+ MySQL table which will be synced must have a PK(primary key), multi columns PK is not allowed. The PK data will be used as id in Elasticsearch.  
++ MySQL table which will be synced must have a PK(primary key), multi columns PK is not allowed now. The PK data will be used as "id" in Elasticsearch.  
 + You should create the associated mappings in Elasticsearch first, I don't think using the default mapping is a wise decision, you must know how to search accurately.
-+ `mysqldump` must exist in the same node with go-mysql-elasticsearch.
++ `mysqldump` must exist in the same node with go-mysql-elasticsearch, if not, go-mysql-elasticsearch will try to sync binlog only.
 + Don't change too many rows at same time in one SQL.
 
 ## Source
@@ -60,7 +60,21 @@ type = "t"
 
 In the example above, we will use a new index and type both named "t" instead of default "t1", and use "my_title" instead of field name "title".
 
+## Why not other rivers?
+
+Although there are some other MySQL rivers for Elasticsearch, like [elasticsearch-river-jdbc](https://github.com/jprante/elasticsearch-river-jdbc), [elasticsearch-river-mysql](https://github.com/scharron/elasticsearch-river-mysql), I still want to build a new one with Go, why?
+
++ Customization, I want to decide which table to be synced, the associated index and type name, or even the field name in Elasticsearch.
++ Incremental replication with binlog, and can resume from the last sync position when the service starts. 
++ A common sync framework not only for Elasticsearch but also for others, like memcached, redis, etc...
+
 ## Todo
 
 + Wildcard table source support, like "table_%".
-+ Filter table field support, only fields in filter config will be synced.
++ Filtering table field support, only fields in filter config will be synced.
+
+## Feedback
+
+go-mysql-elasticsearch is still in development, and we will try to use it in production later. Any feedback is very welcome.
+
+Email: siddontang@gmail.com

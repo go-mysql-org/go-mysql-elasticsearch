@@ -1,4 +1,5 @@
 # MySQL address, user and password
+# user must have replication privilege in MySQL.
 my_addr = "127.0.0.1:3306"
 my_user = "root"
 my_pass = ""
@@ -22,7 +23,7 @@ mysqldump = "mysqldump"
 [[source]]
 schema = "test"
 
-# Only below tables will be synced to Elasticsearch.
+# Only below tables will be synced into Elasticsearch.
 # I don't think it is necessary to sync all tables in a database.
 tables = ["test_river"]
 
@@ -33,7 +34,7 @@ table = "test_river"
 index = "river"
 type = "river"
 
-    # title is MySQL es_test field name, es_tiel is your customized name in Elasticsearch
+    # title is MySQL test_river field name, es_title is the customized name in Elasticsearch
     [rule.field]
     title = "es_title"
 
