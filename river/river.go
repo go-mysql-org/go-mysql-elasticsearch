@@ -5,6 +5,7 @@ import (
 	"github.com/siddontang/go-mysql-elasticsearch/dump"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/client"
+	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go/log"
 	"github.com/siddontang/go/sync2"
@@ -34,7 +35,7 @@ type River struct {
 
 	parser *parseHandler
 
-	ev chan *event
+	ev chan interface{}
 
 	bulkSize sync2.AtomicInt64
 }
@@ -50,7 +51,7 @@ func NewRiver(c *Config) (*River, error) {
 
 	r.parser = &parseHandler{r: r}
 
-	r.ev = make(chan *event, 1024)
+	r.ev = make(chan interface{}, 2048)
 
 	os.MkdirAll(c.DataDir, 0755)
 
@@ -75,6 +76,8 @@ func NewRiver(c *Config) (*River, error) {
 		// may use another MySQL, reset
 		r.m = &MasterInfo{}
 	}
+
+	r.m.Addr = r.c.MyAddr
 
 	if r.dumper, err = dump.NewDumper(r.c.DumpExec, r.c.MyAddr, r.c.MyUser, r.c.MyPassword); err != nil {
 		return nil, err
@@ -191,7 +194,9 @@ func (r *River) Run() error {
 	}
 
 	if err := r.syncBinlog(); err != nil {
-		log.Errorf("sync binlog error %v", err)
+		if !r.closed() || err != mysql.ErrBadConn {
+			log.Errorf("sync binlog error %v", err)
+		}
 		return err
 	}
 
@@ -199,6 +204,7 @@ func (r *River) Run() error {
 }
 
 func (r *River) Close() {
+	log.Infof("closing river")
 	close(r.quit)
 
 	r.syncer.Close()
@@ -206,4 +212,13 @@ func (r *River) Close() {
 	r.wg.Wait()
 
 	r.m.Close()
+}
+
+func (r *River) closed() bool {
+	select {
+	case <-r.quit:
+		return true
+	default:
+		return false
+	}
 }

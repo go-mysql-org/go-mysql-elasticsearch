@@ -93,12 +93,7 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 	return reqs, nil
 }
 
-type event struct {
-	pos  mysql.Position
-	reqs []*elastic.BulkRequest
-}
-
-func (r *River) syncDocument(pos mysql.Position, rule *Rule, dtype int, rows [][]interface{}) error {
+func (r *River) syncDocument(rule *Rule, dtype int, rows [][]interface{}) error {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -117,7 +112,7 @@ func (r *River) syncDocument(pos mysql.Position, rule *Rule, dtype int, rows [][
 
 	r.bulkSize.Add(int64(len(reqs)))
 
-	r.ev <- &event{pos, reqs}
+	r.ev <- reqs
 
 	return err
 }
@@ -160,26 +155,44 @@ func (r *River) syncLoop() {
 
 	reqs := make([]*elastic.BulkRequest, 0, 1024)
 
-	var pos mysql.Position
-
+	posUpdate := false
+	lastTime := time.Now()
 	for {
 		select {
-		case event := <-r.ev:
-			pos = event.pos
-			reqs = append(reqs, event.reqs...)
-			reqs = r.doBulk(pos, reqs, false)
+		case ev := <-r.ev:
+			switch e := ev.(type) {
+			case []*elastic.BulkRequest:
+				reqs = append(reqs, e...)
+				reqs = r.doBulk(reqs, false)
+			case mysql.Position:
+				reqs = r.doBulk(reqs, true)
+				r.m.Update(e.Name, e.Pos)
+				posUpdate = true
+			}
 		case <-t.C:
-			reqs = r.doBulk(pos, reqs, true)
+			reqs = r.doBulk(reqs, true)
 		case <-r.quit:
-			reqs = r.doBulk(pos, reqs, true)
+			reqs = r.doBulk(reqs, true)
+			if len(r.ev) > 0 {
+				log.Warnf("quiting, but at least %d reqs need to been done", len(r.ev))
+			}
 			return
+		}
+
+		if posUpdate {
+			n := time.Now()
+			if n.Sub(lastTime) > 1*time.Second {
+				r.m.Save()
+				lastTime = n
+			}
+			posUpdate = false
 		}
 	}
 }
 
 const maxBulkNum = 100
 
-func (r *River) doBulk(pos mysql.Position, reqs []*elastic.BulkRequest, force bool) []*elastic.BulkRequest {
+func (r *River) doBulk(reqs []*elastic.BulkRequest, force bool) []*elastic.BulkRequest {
 	if len(reqs) == 0 {
 		return reqs
 	} else if len(reqs) < maxBulkNum && !force {
@@ -198,7 +211,8 @@ func (r *River) doBulk(pos mysql.Position, reqs []*elastic.BulkRequest, force bo
 		}
 
 		if _, err := r.es.Bulk(reqs[start:end]); err != nil {
-			log.Errorf("sync docs err %v from binlog (%s, %d)", err, pos.Name, pos.Pos)
+			pos := r.m.Pos()
+			log.Errorf("sync docs err %v after binlog (%s, %d)", err, pos.Name, pos.Pos)
 		}
 
 		if size == end {
@@ -209,4 +223,18 @@ func (r *River) doBulk(pos mysql.Position, reqs []*elastic.BulkRequest, force bo
 	r.bulkSize.Add(int64(-len(reqs)))
 
 	return reqs[0:0]
+}
+
+func (r *River) waitPos(pos mysql.Position, seconds int) {
+	for i := 0; i < seconds; i++ {
+		p := r.m.Pos()
+		if p.Compare(pos) >= 0 {
+			log.Infof("wait pos %v with %d seconds", pos, i)
+			return
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	log.Warnf("wait pos %v with %d seconds, but now binlog pos is %v", pos, seconds, r.m.Pos())
 }

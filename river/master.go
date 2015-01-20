@@ -3,8 +3,10 @@ package river
 import (
 	"bytes"
 	"github.com/BurntSushi/toml"
+	"github.com/siddontang/go-mysql/mysql"
 	"io"
 	"os"
+	"sync"
 )
 
 type MasterInfo struct {
@@ -13,6 +15,8 @@ type MasterInfo struct {
 	Position uint32 `toml:"bin_pos"`
 
 	f *os.File
+
+	l sync.Mutex
 }
 
 func loadMasterInfo(name string) (*MasterInfo, error) {
@@ -34,7 +38,12 @@ func loadMasterInfo(name string) (*MasterInfo, error) {
 func (m *MasterInfo) Save() error {
 	var buf bytes.Buffer
 	e := toml.NewEncoder(&buf)
+
+	m.l.Lock()
 	e.Encode(m)
+	m.l.Unlock()
+
+	m.f.Seek(0, os.SEEK_SET)
 
 	m.f.Truncate(0)
 	if n, err := m.f.Write(buf.Bytes()); err != nil {
@@ -46,8 +55,20 @@ func (m *MasterInfo) Save() error {
 }
 
 func (m *MasterInfo) Update(name string, pos uint32) {
+	m.l.Lock()
 	m.Name = name
 	m.Position = pos
+	m.l.Unlock()
+}
+
+func (m *MasterInfo) Pos() mysql.Position {
+	var pos mysql.Position
+	m.l.Lock()
+	pos.Name = m.Name
+	pos.Pos = m.Position
+	m.l.Unlock()
+
+	return pos
 }
 
 func (m *MasterInfo) Close() {

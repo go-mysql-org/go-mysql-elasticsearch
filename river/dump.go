@@ -63,7 +63,7 @@ func (h *parseHandler) Data(db string, table string, values []string) error {
 		}
 	}
 
-	if err := h.r.syncDocument(mysql.Position{}, rule, syncInsertDoc, [][]interface{}{vs}); err != nil {
+	if err := h.r.syncDocument(rule, syncInsertDoc, [][]interface{}{vs}); err != nil {
 		log.Errorf("dump: sync %v  error %v", vs, err)
 	}
 
@@ -111,12 +111,14 @@ func (r *River) tryDump() error {
 
 	r.dumper.SetErrOut(ioutil.Discard)
 
+	t := time.Now()
 	log.Info("try dump MySQL")
 	if err = r.dumper.Dump(f); err != nil {
 		return err
 	}
 
-	log.Info("dump MySQL OK, try parse")
+	n := time.Now()
+	log.Infof("dump MySQL OK, use %0.2f seconds, try parse", n.Sub(t).Seconds())
 
 	f.Seek(0, 0)
 
@@ -125,14 +127,15 @@ func (r *River) tryDump() error {
 		return err
 	}
 
-	log.Infof("parse dump MySQL data OK, start binlog replication at (%s, %d)", r.parser.name, r.parser.pos)
-
+	pos := mysql.Position{r.parser.name, uint32(r.parser.pos)}
 	// set binlog information for sync
-	r.m.Addr = r.c.MyAddr
-	r.m.Name = r.parser.name
-	r.m.Position = uint32(r.parser.pos)
+	r.ev <- pos
+	r.waitPos(pos, 60)
 
-	r.m.Save()
+	t = time.Now()
+
+	log.Infof("parse dump MySQL data OK, use %0.2f seconds, start binlog replication at %v",
+		t.Sub(n).Seconds(), pos)
 
 	return nil
 }
