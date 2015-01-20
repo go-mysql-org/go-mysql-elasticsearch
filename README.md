@@ -62,5 +62,4 @@ In the example above, we will use a new index and type both named "t" instead of
 
 ## Todo
 
-+ Optimize master.info saving.
-+ Optimize bulk operation for Elasticsearch. 
++ Wildcard table source support, like "table_%".
