@@ -175,6 +175,22 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 	return ret, err
 }
 
+func (c *Client) DeleteIndex(index string) error {
+	reqUrl := fmt.Sprintf("http://%s/%s", c.Addr,
+		url.QueryEscape(index))
+
+	r, err := c.Do("DELETE", reqUrl, nil)
+	if err != nil {
+		return err
+	}
+
+	if r.Code == http.StatusOK || r.Code == http.StatusNotFound {
+		return nil
+	} else {
+		return fmt.Errorf("Error: %s, code: %d", http.StatusText(r.Code), r.Code)
+	}
+}
+
 func (c *Client) Get(index string, docType string, id string) (*Response, error) {
 	reqUrl := fmt.Sprintf("http://%s/%s/%s/%s", c.Addr,
 		url.QueryEscape(index),

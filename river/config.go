@@ -1,9 +1,7 @@
 package river
 
 import (
-	"bytes"
 	"github.com/BurntSushi/toml"
-	"github.com/siddontang/go/ioutil2"
 	"io/ioutil"
 )
 
@@ -48,33 +46,4 @@ func NewConfig(data string) (*Config, error) {
 	}
 
 	return &c, nil
-}
-
-type MasterInfo struct {
-	Addr     string `toml:"addr"`
-	Name     string `toml:"bin_name"`
-	Position uint64 `toml:"bin_pos"`
-}
-
-func loadMasterInfo(name string) (*MasterInfo, error) {
-	var m MasterInfo
-	if !ioutil2.FileExists(name) {
-		return &m, nil
-	}
-
-	_, err := toml.DecodeFile(name, &m)
-	return &m, err
-}
-
-func (m *MasterInfo) Save(name string) error {
-	var buf bytes.Buffer
-	e := toml.NewEncoder(&buf)
-	e.Encode(m)
-
-	return ioutil2.WriteFileAtomic(name, buf.Bytes(), 0644)
-}
-
-func (m *MasterInfo) Update(name string, pos uint64) {
-	m.Name = name
-	m.Position = pos
 }

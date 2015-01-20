@@ -9,49 +9,55 @@ import (
 )
 
 func (r *River) syncBinlog() error {
-	s, err := r.syncer.StartSync(mysql.Position{r.m.Name, uint32(r.m.Position)})
+	var pos mysql.Position
+
+	s, err := r.syncer.StartSync(mysql.Position{r.m.Name, r.m.Position})
 	if err != nil {
 		return fmt.Errorf("start sync replication at %s:%d error %v", r.m.Name, r.m.Position, err)
 	}
 
 	lastTime := time.Now()
 	for {
-		event, err := s.GetEvent()
+		//current binlog pos
+		pos.Name = r.m.Name
+		pos.Pos = r.m.Position
+
+		ev, err := s.GetEvent()
 		if err != nil {
 			return fmt.Errorf("get event error %v", err)
 		}
 
-		r.m.Position = uint64(event.Header.LogPos)
+		//next binlog pos
+		r.m.Position = ev.Header.LogPos
 
-		switch e := event.Event.(type) {
+		switch e := ev.Event.(type) {
 		case *replication.RotateEvent:
-			r.m.Name = string(e.NextLogName)
-			r.m.Position = e.Position
-			if err = r.m.Save(r.masterInfoPath()); err != nil {
-				log.Errorf("save master info error %v", err)
-			}
+			r.m.Update(string(e.NextLogName), uint32(e.Position))
+			log.Infof("rotate binlog to (%s, %d)", r.m.Name, r.m.Position)
+			r.m.Save()
 		case *replication.RowsEvent:
 			// we only focus row based event
-			if err = r.handleRowsEvent(event); err != nil {
+			if err = r.handleRowsEvent(pos, ev); err != nil {
 				log.Errorf("handle rows event error %v", err)
+			}
+
+			// Warn, sync data is asynchronous, if crashed, saved binlog position may be not correct.
+			// change later or only log???
+			n := time.Now()
+			if n.Sub(lastTime) > 1*time.Second {
+				lastTime = n
+				r.m.Save()
 			}
 		default:
 			//skip
 		}
 
-		n := time.Now()
-		if n.Sub(lastTime) > time.Second {
-			lastTime = n
-			if err = r.m.Save(r.masterInfoPath()); err != nil {
-				log.Errorf("save master info error %v", err)
-			}
-		}
 	}
 
 	return nil
 }
 
-func (r *River) handleRowsEvent(e *replication.BinlogEvent) error {
+func (r *River) handleRowsEvent(pos mysql.Position, e *replication.BinlogEvent) error {
 	ev := e.Event.(*replication.RowsEvent)
 
 	// Caveat: table may be altered at runtime.
@@ -60,16 +66,16 @@ func (r *River) handleRowsEvent(e *replication.BinlogEvent) error {
 
 	rule, ok := r.rules[ruleKey(schema, table)]
 	if !ok {
-		log.Infof("no rule for %s.%s rows event, skip", schema, table)
+		return nil
 	}
 
 	switch e.Header.EventType {
 	case replication.WRITE_ROWS_EVENTv1, replication.WRITE_ROWS_EVENTv2:
-		return r.syncDocument(rule, syncInsertDoc, ev.Rows)
+		return r.syncDocument(pos, rule, syncInsertDoc, ev.Rows)
 	case replication.DELETE_ROWS_EVENTv1, replication.DELETE_ROWS_EVENTv2:
-		return r.syncDocument(rule, syncDeleteDoc, ev.Rows)
+		return r.syncDocument(pos, rule, syncDeleteDoc, ev.Rows)
 	case replication.UPDATE_ROWS_EVENTv1, replication.UPDATE_ROWS_EVENTv2:
-		return r.syncDocument(rule, syncUpdateDoc, ev.Rows)
+		return r.syncDocument(pos, rule, syncUpdateDoc, ev.Rows)
 	default:
 		return fmt.Errorf("%s not supported now", e.Header.EventType)
 	}

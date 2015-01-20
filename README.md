@@ -1,4 +1,4 @@
-go-mysql-elasticsearch is a service to sync your MySQL data into elastissearch automatically. 
+go-mysql-elasticsearch is a service to sync your MySQL data into Elastissearch automatically. 
 
 It uses mysqldump to fetch data at first, then syncs data incrementally with binlog.
 
@@ -18,7 +18,7 @@ It uses mysqldump to fetch data at first, then syncs data incrementally with bin
 + MySQL table which will be synced must have a PK(primary key), multi columns PK is not allowed. The PK data will be used as id in Elasticsearch.  
 + You should create the associated mappings in Elasticsearch first, I don't think using the default mapping is a wise decision, you must know how to search accurately.
 + `mysqldump` must exist in the same node with go-mysql-elasticsearch.
-+ Don't change too many rows at same time.
++ Don't change too many rows at same time in one SQL.
 
 ## Source
 

@@ -7,6 +7,7 @@ import (
 	"github.com/siddontang/go-mysql/client"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go/log"
+	"github.com/siddontang/go/sync2"
 	"os"
 	"path"
 	"strconv"
@@ -33,8 +34,9 @@ type River struct {
 
 	parser *parseHandler
 
-	// for test only
-	binlogStartCh chan struct{}
+	ev chan *event
+
+	bulkSize sync2.AtomicInt64
 }
 
 func NewRiver(c *Config) (*River, error) {
@@ -46,9 +48,9 @@ func NewRiver(c *Config) (*River, error) {
 
 	r.rules = make(map[string]*Rule)
 
-	r.parser = &parseHandler{r: r, rows: make([][]interface{}, 0, 10)}
+	r.parser = &parseHandler{r: r}
 
-	r.binlogStartCh = make(chan struct{})
+	r.ev = make(chan *event, 1024)
 
 	os.MkdirAll(c.DataDir, 0755)
 
@@ -177,7 +179,9 @@ func ruleKey(schema string, table string) string {
 }
 
 func (r *River) Run() error {
-	r.wg.Add(1)
+	r.wg.Add(2)
+	go r.syncLoop()
+
 	defer r.wg.Done()
 
 	// first check needing dump?
@@ -185,8 +189,6 @@ func (r *River) Run() error {
 		log.Errorf("dump mysql error %v", err)
 		return err
 	}
-
-	close(r.binlogStartCh)
 
 	if err := r.syncBinlog(); err != nil {
 		log.Errorf("sync binlog error %v", err)
@@ -203,5 +205,5 @@ func (r *River) Close() {
 
 	r.wg.Wait()
 
-	r.m.Save(r.masterInfoPath())
+	r.m.Close()
 }

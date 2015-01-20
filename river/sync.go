@@ -3,6 +3,9 @@ package river
 import (
 	"fmt"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
+	"github.com/siddontang/go-mysql/mysql"
+	"github.com/siddontang/go/log"
+	"time"
 )
 
 const (
@@ -90,7 +93,12 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 	return reqs, nil
 }
 
-func (r *River) syncDocument(rule *Rule, dtype int, rows [][]interface{}) error {
+type event struct {
+	pos  mysql.Position
+	reqs []*elastic.BulkRequest
+}
+
+func (r *River) syncDocument(pos mysql.Position, rule *Rule, dtype int, rows [][]interface{}) error {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -107,8 +115,9 @@ func (r *River) syncDocument(rule *Rule, dtype int, rows [][]interface{}) error 
 		reqs, err = r.makeUpdateRequest(rule, rows)
 	}
 
-	// todo, use bulk, now, send one by one
-	_, err = r.es.Bulk(reqs)
+	r.bulkSize.Add(int64(len(reqs)))
+
+	r.ev <- &event{pos, reqs}
 
 	return err
 }
@@ -141,4 +150,63 @@ func (r *River) getDocID(rule *Rule, values []interface{}) (string, error) {
 	}
 
 	return fmt.Sprintf("%v", id), nil
+}
+
+func (r *River) syncLoop() {
+	defer r.wg.Done()
+
+	t := time.NewTicker(200 * time.Millisecond)
+	defer t.Stop()
+
+	reqs := make([]*elastic.BulkRequest, 0, 1024)
+
+	var pos mysql.Position
+
+	for {
+		select {
+		case event := <-r.ev:
+			pos = event.pos
+			reqs = append(reqs, event.reqs...)
+			reqs = r.doBulk(pos, reqs, false)
+		case <-t.C:
+			reqs = r.doBulk(pos, reqs, true)
+		case <-r.quit:
+			reqs = r.doBulk(pos, reqs, true)
+			return
+		}
+	}
+}
+
+const maxBulkNum = 100
+
+func (r *River) doBulk(pos mysql.Position, reqs []*elastic.BulkRequest, force bool) []*elastic.BulkRequest {
+	if len(reqs) == 0 {
+		return reqs
+	} else if len(reqs) < maxBulkNum && !force {
+		return reqs
+	}
+
+	size := len(reqs)
+	start := 0
+	end := maxBulkNum
+
+	for i := 0; ; i++ {
+		start = i * maxBulkNum
+		end = (i + 1) * maxBulkNum
+		if end > size {
+			end = size
+		}
+
+		if _, err := r.es.Bulk(reqs[start:end]); err != nil {
+			log.Errorf("sync docs err %v from binlog (%s, %d)", err, pos.Name, pos.Pos)
+		}
+
+		if size == end {
+			break
+		}
+	}
+
+	r.bulkSize.Add(int64(-len(reqs)))
+
+	return reqs[0:0]
 }

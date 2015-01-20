@@ -67,6 +67,9 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	s.r, err = NewRiver(cfg)
 	c.Assert(err, IsNil)
+
+	err = s.r.es.DeleteIndex("river")
+	c.Assert(err, IsNil)
 }
 
 func (s *riverTestSuite) TearDownSuite(c *C) {
@@ -131,12 +134,22 @@ func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
 	return r
 }
 
+func (s *riverTestSuite) testWaitSyncDone(c *C) {
+	for {
+		time.Sleep(1 * time.Second)
+
+		if s.r.bulkSize.Get() == 0 {
+			break
+		}
+	}
+}
+
 func (s *riverTestSuite) TestRiver(c *C) {
 	s.testPrepareData(c)
 
 	go s.r.Run()
 
-	<-s.r.binlogStartCh
+	s.testWaitSyncDone(c)
 
 	var r *elastic.Response
 	r = s.testElasticGet(c, "1")
@@ -148,7 +161,8 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	s.testExecute(c, "DELETE FROM test_river WHERE id = ?", 1)
 	s.testExecute(c, "UPDATE test_river SET title = ?, id = ? WHERE id = ?", "second 30", 30, 3)
 
-	time.Sleep(3 * time.Second)
+	s.testWaitSyncDone(c)
+
 	r = s.testElasticGet(c, "1")
 	c.Assert(r.Found, Equals, false)
 

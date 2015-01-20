@@ -3,6 +3,7 @@ package river
 import (
 	"fmt"
 	"github.com/siddontang/go-mysql-elasticsearch/dump"
+	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/schema"
 	"github.com/siddontang/go/log"
 	"io/ioutil"
@@ -17,28 +18,12 @@ type parseHandler struct {
 
 	name string
 	pos  uint64
-
-	rule *Rule
-	rows [][]interface{}
 }
 
 func (h *parseHandler) BinLog(name string, pos uint64) error {
 	h.name = name
 	h.pos = pos
 	return nil
-}
-
-func (h *parseHandler) trySyncDoc(force bool) {
-	if h.rule == nil {
-		return
-	}
-
-	if len(h.rows) > 10 || (force && len(h.rows) > 0) {
-		if err := h.r.syncDocument(h.rule, syncInsertDoc, h.rows); err != nil {
-			log.Errorf("sync %d docs %v error %v", len(h.rows), h.rows, err)
-		}
-		h.rows = h.rows[0:0]
-	}
 }
 
 func (h *parseHandler) Data(db string, table string, values []string) error {
@@ -48,10 +33,6 @@ func (h *parseHandler) Data(db string, table string, values []string) error {
 		log.Warnf("no rule for %s.%s", db, table)
 		return nil
 	}
-
-	h.trySyncDoc(rule != h.rule)
-
-	h.rule = rule
 
 	vs := make([]interface{}, len(values))
 
@@ -82,7 +63,9 @@ func (h *parseHandler) Data(db string, table string, values []string) error {
 		}
 	}
 
-	h.rows = append(h.rows, vs)
+	if err := h.r.syncDocument(mysql.Position{}, rule, syncInsertDoc, [][]interface{}{vs}); err != nil {
+		log.Errorf("dump: sync %v  error %v", vs, err)
+	}
 
 	return nil
 }
@@ -142,14 +125,14 @@ func (r *River) tryDump() error {
 		return err
 	}
 
-	r.parser.trySyncDoc(true)
-
 	log.Infof("parse dump MySQL data OK, start binlog replication at (%s, %d)", r.parser.name, r.parser.pos)
 
 	// set binlog information for sync
 	r.m.Addr = r.c.MyAddr
 	r.m.Name = r.parser.name
-	r.m.Position = r.parser.pos
+	r.m.Position = uint32(r.parser.pos)
+
+	r.m.Save()
 
 	return nil
 }
