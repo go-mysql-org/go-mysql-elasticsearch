@@ -63,3 +63,4 @@ In the example above, we will use a new index and type both named "t" instead of
 ## Todo
 
 + Wildcard table source support, like "table_%".
++ Filter table field support, only fields in filter config will be synced.
