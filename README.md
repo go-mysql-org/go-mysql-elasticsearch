@@ -6,8 +6,9 @@ It uses `mysqldump` to fetch the origin data at first, then syncs data increment
 
 + Create table in MySQL.
 + Create the associated Elasticsearch index, document type and mappings if possible, if not, Elasticsearch will create these automatically.
++ Config base, see the example config [river.toml](./etc/river.toml).
 + Set MySQL source in config file, see [Source](#source) below.
-+ Custom MySQL and Elasticsearch mapping rule in config file, see [Rule](#rule) below.
++ Customize MySQL and Elasticsearch mapping rule in config file, see [Rule](#rule) below.
 + Start `go-mysql-elasticsearch` and enjoy it.
 
 ## Notice
