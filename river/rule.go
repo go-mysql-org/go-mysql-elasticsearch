@@ -54,7 +54,7 @@ func (r Rules) prepare() error {
 	return nil
 }
 
-func (r *Rule) FetchTableInfo(conn *client.Conn) error {
+func (r *Rule) fetchTableInfo(conn *client.Conn) error {
 	var err error
 	r.TableInfo, err = schema.NewTable(conn, r.Schema, r.Table)
 	if err != nil {

@@ -5,8 +5,10 @@ import (
 	"github.com/siddontang/go-mysql-elasticsearch/dump"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/client"
+	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go/log"
+	"github.com/siddontang/go/sync2"
 	"os"
 	"path"
 	"strconv"
@@ -33,7 +35,9 @@ type River struct {
 
 	parser *parseHandler
 
-	binlogStartCh chan struct{}
+	ev chan interface{}
+
+	bulkSize sync2.AtomicInt64
 }
 
 func NewRiver(c *Config) (*River, error) {
@@ -45,28 +49,35 @@ func NewRiver(c *Config) (*River, error) {
 
 	r.rules = make(map[string]*Rule)
 
-	r.parser = &parseHandler{r, "", 0}
+	r.parser = &parseHandler{r: r}
 
-	r.binlogStartCh = make(chan struct{})
+	r.ev = make(chan interface{}, 2048)
 
 	os.MkdirAll(c.DataDir, 0755)
 
-	var err error
-	if err = r.prepareRule(); err != nil {
+	conn, err := client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, "")
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	if err = r.checkBinlogFormat(conn); err != nil {
 		return nil, err
 	}
 
-	if err = r.initFromMySQL(); err != nil {
+	if err = r.prepareRule(conn); err != nil {
 		return nil, err
 	}
 
-	if r.m, err = LoadMasterInfo(r.masterInfoPath()); err != nil {
+	if r.m, err = loadMasterInfo(r.masterInfoPath()); err != nil {
 		return nil, err
 	} else if len(r.m.Addr) != 0 && r.m.Addr != r.c.MyAddr {
 		log.Infof("MySQL addr %s in old master.info, but new %s, reset", r.m.Addr, r.c.MyAddr)
 		// may use another MySQL, reset
 		r.m = &MasterInfo{}
 	}
+
+	r.m.Addr = r.c.MyAddr
 
 	if r.dumper, err = dump.NewDumper(r.c.DumpExec, r.c.MyAddr, r.c.MyUser, r.c.MyPassword); err != nil {
 		return nil, err
@@ -81,7 +92,7 @@ func NewRiver(c *Config) (*River, error) {
 	return r, nil
 }
 
-func (r *River) prepareRule() error {
+func (r *River) prepareRule(c *client.Conn) error {
 	// first, check sources
 	for _, s := range r.c.Sources {
 		for _, table := range s.Tables {
@@ -101,44 +112,24 @@ func (r *River) prepareRule() error {
 		return fmt.Errorf("no source data defined")
 	}
 
-	if r.c.Rules == nil {
-		return nil
-	}
+	if r.c.Rules != nil {
+		r.c.Rules.prepare()
 
-	r.c.Rules.prepare()
+		// then, set custom mapping rule
+		for _, rule := range r.c.Rules {
+			key := ruleKey(rule.Schema, rule.Table)
 
-	// then, set custom mapping rule
-	for _, rule := range r.c.Rules {
-		key := ruleKey(rule.Schema, rule.Table)
+			if _, ok := r.rules[key]; !ok {
+				return fmt.Errorf("rule %s, %s not defined in source", rule.Schema, rule.Table)
+			}
 
-		if _, ok := r.rules[key]; !ok {
-			return fmt.Errorf("rule %s, %s not defined in source", rule.Schema, rule.Table)
+			// use cusstom rule
+			r.rules[key] = rule
 		}
-
-		// use cusstom rule
-		r.rules[key] = rule
-	}
-
-	return nil
-}
-
-func (r *River) initFromMySQL() error {
-	c, err := client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, "")
-	if err != nil {
-		return err
-	}
-
-	defer c.Close()
-
-	res, err := c.Execute(`SHOW GLOBAL VARIABLES LIKE "binlog_format";`)
-	if err != nil {
-		return err
-	} else if f, _ := res.GetString(0, 1); f != "ROW" {
-		return fmt.Errorf("binlog must ROW format, but %s now", f)
 	}
 
 	for _, rule := range r.rules {
-		if err = rule.FetchTableInfo(c); err != nil {
+		if err := rule.fetchTableInfo(c); err != nil {
 			return err
 		}
 
@@ -149,7 +140,18 @@ func (r *River) initFromMySQL() error {
 		}
 	}
 
-	return err
+	return nil
+}
+
+func (r *River) checkBinlogFormat(c *client.Conn) error {
+	res, err := c.Execute(`SHOW GLOBAL VARIABLES LIKE "binlog_format";`)
+	if err != nil {
+		return err
+	} else if f, _ := res.GetString(0, 1); f != "ROW" {
+		return fmt.Errorf("binlog must ROW format, but %s now", f)
+	}
+
+	return nil
 }
 
 func (r *River) prepareSyncer() error {
@@ -180,7 +182,9 @@ func ruleKey(schema string, table string) string {
 }
 
 func (r *River) Run() error {
-	r.wg.Add(1)
+	r.wg.Add(2)
+	go r.syncLoop()
+
 	defer r.wg.Done()
 
 	// first check needing dump?
@@ -189,10 +193,10 @@ func (r *River) Run() error {
 		return err
 	}
 
-	close(r.binlogStartCh)
-
 	if err := r.syncBinlog(); err != nil {
-		log.Errorf("sync binlog error %v", err)
+		if !r.closed() || err != mysql.ErrBadConn {
+			log.Errorf("sync binlog error %v", err)
+		}
 		return err
 	}
 
@@ -200,11 +204,21 @@ func (r *River) Run() error {
 }
 
 func (r *River) Close() {
+	log.Infof("closing river")
 	close(r.quit)
 
 	r.syncer.Close()
 
 	r.wg.Wait()
 
-	r.m.Save(r.masterInfoPath())
+	r.m.Close()
+}
+
+func (r *River) closed() bool {
+	select {
+	case <-r.quit:
+		return true
+	default:
+		return false
+	}
 }

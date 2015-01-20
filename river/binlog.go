@@ -8,36 +8,40 @@ import (
 )
 
 func (r *River) syncBinlog() error {
-	s, err := r.syncer.StartSync(mysql.Position{r.m.Name, uint32(r.m.Position)})
+	pos := mysql.Position{r.m.Name, r.m.Position}
+
+	log.Infof("start sync binlog at %v", pos)
+
+	s, err := r.syncer.StartSync(pos)
 	if err != nil {
-		return fmt.Errorf("start sync replication at %s:%d error %v", r.m.Name, r.m.Position, err)
+		return fmt.Errorf("start sync replication at %v error %v", pos, err)
 	}
 
 	for {
-		event, err := s.GetEvent()
+		ev, err := s.GetEvent()
 		if err != nil {
-			return fmt.Errorf("get event error %v", err)
+			return err
 		}
 
-		r.m.Position = uint64(event.Header.LogPos)
+		//next binlog pos
+		pos.Pos = ev.Header.LogPos
 
-		switch e := event.Event.(type) {
+		switch e := ev.Event.(type) {
 		case *replication.RotateEvent:
-			r.m.Name = string(e.NextLogName)
-			r.m.Position = e.Position
+			pos.Name = string(e.NextLogName)
+			pos.Pos = uint32(e.Position)
+			r.ev <- pos
+			log.Infof("rotate binlog to %v", pos)
 		case *replication.RowsEvent:
 			// we only focus row based event
-			if err = r.handleRowsEvent(event); err != nil {
+			if err = r.handleRowsEvent(ev); err != nil {
 				log.Errorf("handle rows event error %v", err)
 			}
 		default:
 			//skip
 		}
 
-		// todo, use mmap to fast it
-		if err = r.m.Save(r.masterInfoPath()); err != nil {
-			log.Errorf("save master info error %v", err)
-		}
+		r.ev <- pos
 	}
 
 	return nil
@@ -45,67 +49,24 @@ func (r *River) syncBinlog() error {
 
 func (r *River) handleRowsEvent(e *replication.BinlogEvent) error {
 	ev := e.Event.(*replication.RowsEvent)
+
+	// Caveat: table may be altered at runtime.
+	schema := string(ev.Table.Schema)
+	table := string(ev.Table.Table)
+
+	rule, ok := r.rules[ruleKey(schema, table)]
+	if !ok {
+		return nil
+	}
+
 	switch e.Header.EventType {
-	case replication.WRITE_ROWS_EVENTv1:
-		return r.handleWriteRowsEvent(ev)
-	case replication.DELETE_ROWS_EVENTv1:
-		return r.handleDeleteRowsEvent(ev)
-	case replication.UPDATE_ROWS_EVENTv1:
-		return r.handleUpdateRowsEvent(ev)
-	case replication.WRITE_ROWS_EVENTv2:
-		return r.handleWriteRowsEvent(ev)
-	case replication.UPDATE_ROWS_EVENTv2:
-		return r.handleUpdateRowsEvent(ev)
-	case replication.DELETE_ROWS_EVENTv2:
-		return r.handleDeleteRowsEvent(ev)
+	case replication.WRITE_ROWS_EVENTv1, replication.WRITE_ROWS_EVENTv2:
+		return r.syncDocument(rule, syncInsertDoc, ev.Rows)
+	case replication.DELETE_ROWS_EVENTv1, replication.DELETE_ROWS_EVENTv2:
+		return r.syncDocument(rule, syncDeleteDoc, ev.Rows)
+	case replication.UPDATE_ROWS_EVENTv1, replication.UPDATE_ROWS_EVENTv2:
+		return r.syncDocument(rule, syncUpdateDoc, ev.Rows)
 	default:
 		return fmt.Errorf("%s not supported now", e.Header.EventType)
 	}
-}
-
-func (r *River) handleWriteRowsEvent(e *replication.RowsEvent) error {
-	rule := r.getRuleWithRowsEvent(e)
-
-	for _, values := range e.Rows {
-		if err := r.syncDocument(rule, syncInsertDoc, values, nil); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (r *River) handleDeleteRowsEvent(e *replication.RowsEvent) error {
-	rule := r.getRuleWithRowsEvent(e)
-
-	for _, values := range e.Rows {
-		if err := r.syncDocument(rule, syncDeleteDoc, values, nil); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (r *River) handleUpdateRowsEvent(e *replication.RowsEvent) error {
-	if len(e.Rows)%2 != 0 {
-		return fmt.Errorf("invalid update rows event, must have 2x rows, but %d", len(e.Rows))
-	}
-
-	rule := r.getRuleWithRowsEvent(e)
-
-	for i := 0; i < len(e.Rows); i += 2 {
-		if err := r.syncDocument(rule, syncUpdateDoc, e.Rows[i], e.Rows[i+1]); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (r *River) getRuleWithRowsEvent(e *replication.RowsEvent) *Rule {
-	// Caveat: table may be altered at runtime.
-	schema := string(e.Table.Schema)
-	table := string(e.Table.Table)
-	return r.rules[ruleKey(schema, table)]
 }
