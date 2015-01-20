@@ -6,8 +6,8 @@ It uses `mysqldump` to fetch the origin data at first, then syncs data increment
 
 + Create table in MySQL.
 + Create the associated Elasticsearch index, document type and mappings if possible, if not, Elasticsearch will create these automatically.
-+ Set MySQL source in config file, see [Source](#Source) below.
-+ Custom MySQL and Elasticsearch mapping rule in config file, see [Rule](#Rule) below.
++ Set MySQL source in config file, see [Source](#source) below.
++ Custom MySQL and Elasticsearch mapping rule in config file, see [Rule](#rule) below.
 + Start `go-mysql-elasticsearch` and enjoy it.
 
 ## Notice
