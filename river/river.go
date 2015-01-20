@@ -10,6 +10,7 @@ import (
 	"github.com/siddontang/go/log"
 	"github.com/siddontang/go/sync2"
 	"os"
+	"os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -80,7 +81,11 @@ func NewRiver(c *Config) (*River, error) {
 	r.m.Addr = r.c.MyAddr
 
 	if r.dumper, err = dump.NewDumper(r.c.DumpExec, r.c.MyAddr, r.c.MyUser, r.c.MyPassword); err != nil {
-		return nil, err
+		if err != exec.ErrNotFound {
+			return nil, err
+		}
+		//no mysqldump, use binlog only
+		r.dumper = nil
 	}
 
 	r.es = elastic.NewClient(r.c.ESAddr)

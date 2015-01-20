@@ -77,6 +77,11 @@ func (r *River) tryDump() error {
 		return nil
 	}
 
+	if r.dumper == nil {
+		log.Info("skip dump, no mysqldump")
+		return nil
+	}
+
 	name := path.Join(r.c.DataDir, fmt.Sprintf("%s.sql", time.Now().String()))
 	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
