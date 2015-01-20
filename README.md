@@ -1,4 +1,4 @@
-go-mysql-elasticsearch is a service to sync your MySQL data into Elastissearch automatically. 
+go-mysql-elasticsearch is a service to sync your MySQL data into Elasticsearch automatically. 
 
 It uses `mysqldump` to fetch the origin data at first, then syncs data incrementally with binlog.
 
