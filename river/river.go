@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -97,19 +98,43 @@ func NewRiver(c *Config) (*River, error) {
 	return r, nil
 }
 
+func (r *River) newRule(schema, table string) error {
+	key := ruleKey(schema, table)
+
+	if _, ok := r.rules[key]; ok {
+		return fmt.Errorf("duplicate source %s, %s defined in config", schema, table)
+	}
+
+	r.rules[key] = newDefaultRule(schema, table)
+	return nil
+}
+
 func (r *River) prepareRule(c *client.Conn) error {
 	// first, check sources
 	for _, s := range r.c.Sources {
 		for _, table := range s.Tables {
-			key := ruleKey(s.Schema, table)
+			if regexp.QuoteMeta(table) != table {
+				sql := fmt.Sprintf(`SELECT table_name FROM information_schema.tables WHERE 
+					table_name RLIKE "%s" AND table_schema = "%s";`, table, s.Schema)
 
-			if _, ok := r.rules[key]; ok {
-				return fmt.Errorf("duplicate source %s, %s defined in config", s.Schema, table)
+				res, err := c.Execute(sql)
+				if err != nil {
+					return err
+				}
+
+				for i := 0; i < res.Resultset.RowNumber(); i++ {
+					f, _ := res.GetString(i, 0)
+					err := r.newRule(s.Schema, f)
+					if err != nil {
+						return err
+					}
+				}
+			} else {
+				err := r.newRule(s.Schema, table)
+				if err != nil {
+					return err
+				}
 			}
-
-			rule := newDefaultRule(s.Schema, table)
-
-			r.rules[key] = rule
 		}
 	}
 
@@ -122,15 +147,32 @@ func (r *River) prepareRule(c *client.Conn) error {
 
 		// then, set custom mapping rule
 		for _, rule := range r.c.Rules {
-			key := ruleKey(rule.Schema, rule.Table)
+			if regexp.QuoteMeta(rule.Table) != rule.Table {
+				tableExp := regexp.MustCompile(rule.Table)
 
-			if _, ok := r.rules[key]; !ok {
-				return fmt.Errorf("rule %s, %s not defined in source", rule.Schema, rule.Table)
+				for k, rr := range r.rules {
+					if tableExp.MatchString(rr.Table) && rule.Schema == rr.Schema {
+						if _, ok := r.rules[k]; !ok {
+							return fmt.Errorf("rule %s, %s not defined in source", rr.Schema, rr.Table)
+						}
+
+						// replace regexp table name to specific table name
+						r.rules[k].Table = rr.Table
+						r.rules[k].Index = rule.Index
+						r.rules[k].Type = rule.Type
+						r.rules[k].FieldMapping = rule.FieldMapping
+					}
+				}
+
+			} else {
+				key := ruleKey(rule.Schema, rule.Table)
+				if _, ok := r.rules[key]; !ok {
+					return fmt.Errorf("rule %s, %s not defined in source", rule.Schema, rule.Table)
+				}
+				r.rules[key] = rule
 			}
-
-			// use cusstom rule
-			r.rules[key] = rule
 		}
+
 	}
 
 	for _, rule := range r.rules {
