@@ -194,13 +194,13 @@ func (r *River) Run() error {
 
 	// first check needing dump?
 	if err := r.tryDump(); err != nil {
-		log.Errorf("dump mysql error %v", err)
+		log.Fatalf("dump mysql error %v", err)
 		return err
 	}
 
 	if err := r.syncBinlog(); err != nil {
 		if !r.closed() || err != mysql.ErrBadConn {
-			log.Errorf("sync binlog error %v", err)
+			log.Fatalf("sync binlog error %v", err)
 		}
 		return err
 	}

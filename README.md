@@ -71,8 +71,9 @@ Although there are some other MySQL rivers for Elasticsearch, like [elasticsearc
 
 ## Todo
 
-+ Wildcard table source support, like "table_%".
++ Wildcard table source support, like "table_[0-9]{4}".
 + Filtering table field support, only fields in filter config will be synced.
++ Statistic.
 
 ## Feedback
 
