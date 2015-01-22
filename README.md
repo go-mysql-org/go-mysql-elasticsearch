@@ -61,14 +61,6 @@ type = "t"
 
 In the example above, we will use a new index and type both named "t" instead of default "t1", and use "my_title" instead of field name "title".
 
-## Why not other rivers?
-
-Although there are some other MySQL rivers for Elasticsearch, like [elasticsearch-river-jdbc](https://github.com/jprante/elasticsearch-river-jdbc), [elasticsearch-river-mysql](https://github.com/scharron/elasticsearch-river-mysql), I still want to build a new one with Go, why?
-
-+ Customization, I want to decide which table to be synced, the associated index and type name, or even the field name in Elasticsearch.
-+ Incremental update with binlog, and can resume from the last sync position when the service starts. 
-+ A common sync framework not only for Elasticsearch but also for others, like memcached, redis, etc...
-
 ## Wildcard table
 
 go-mysql-elasticsearch only allows you determind which table to be synced, but sometimes, if you split a big table into multi sub tables, like 1024, table_0000, table_0001, ... table_1023, it is very hard to write rules for every table. 
@@ -90,6 +82,14 @@ type = "river"
 "test_river_[0-9]{4}" is a wildcard table definition, which represents "test_river_0000" to "test_river_9999", at the same time, the table in the rule must be same as it. 
 
 At the above example, if you have 1024 sub tables, all tables will be synced into Elasticsearch with index "river" and type "river". 
+
+## Why not other rivers?
+
+Although there are some other MySQL rivers for Elasticsearch, like [elasticsearch-river-jdbc](https://github.com/jprante/elasticsearch-river-jdbc), [elasticsearch-river-mysql](https://github.com/scharron/elasticsearch-river-mysql), I still want to build a new one with Go, why?
+
++ Customization, I want to decide which table to be synced, the associated index and type name, or even the field name in Elasticsearch.
++ Incremental update with binlog, and can resume from the last sync position when the service starts. 
++ A common sync framework not only for Elasticsearch but also for others, like memcached, redis, etc...
 
 ## Todo
 
