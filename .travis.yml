@@ -11,6 +11,7 @@ before_install:
   - go get github.com/tools/godep
   - go install -race std
   - mysql -e "CREATE DATABASE IF NOT EXISTS test;" -uroot
+  - mysql -e "SET GLOBAL BINLOG_FORMAT = 'ROW';" -uroot
 
 script:
   - godep go test ./...
