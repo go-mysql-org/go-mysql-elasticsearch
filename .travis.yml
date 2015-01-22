@@ -10,8 +10,18 @@ services:
 before_install:
   - go get github.com/tools/godep
   - go install -race std
+
+  # stop mysql and use row-based format binlog
+  - "sudo /etc/init.d/mysql stop || true"
+  - "echo '[mysqld]'            | sudo tee /etc/mysql/conf.d/replication.cnf"
+  - "echo 'log-bin=mysql-bin'   | sudo tee -a /etc/mysql/conf.d/replication.cnf"
+  - "echo 'binlog-format = row' | sudo tee -a /etc/mysql/conf.d/replication.cnf"
+
+  # Start mysql (avoid errors to have logs)
+  - "sudo /etc/init.d/mysql start || true"
+  - "sudo tail -1000 /var/log/syslog"
+
   - mysql -e "CREATE DATABASE IF NOT EXISTS test;" -uroot
-  - mysql -e "SET GLOBAL BINLOG_FORMAT = 'ROW';" -uroot
 
 script:
   - godep go test ./...

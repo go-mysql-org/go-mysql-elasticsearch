@@ -36,7 +36,7 @@ func (s *schemaTestSuite) SetUpSuite(c *C) {
 	s.d, err = NewDumper(*execution, fmt.Sprintf("%s:%d", *host, *port), "root", "")
 	c.Assert(err, IsNil)
 
-	//s.d.SetErrOut(ioutil.Discard)
+	s.d.SetErrOut(ioutil.Discard)
 
 	_, err = s.conn.Execute("CREATE DATABASE IF NOT EXISTS test1")
 	c.Assert(err, IsNil)
