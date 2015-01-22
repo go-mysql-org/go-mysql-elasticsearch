@@ -69,9 +69,30 @@ Although there are some other MySQL rivers for Elasticsearch, like [elasticsearc
 + Incremental replication with binlog, and can resume from the last sync position when the service starts. 
 + A common sync framework not only for Elasticsearch but also for others, like memcached, redis, etc...
 
+## Wildcard table
+
+go-mysql-elasticsearch only allows you determind which table to be synced, but sometimes, if you split a big table into multi sub tables, like 1024, table_0000, table_0001, ... table_1023, it is very hard to write rules for every table. 
+
+go-mysql-elasticserach supports using wildcard table, e.g:
+
+```
+[[source]]
+schema = "test"
+tables = ["test_river_[0-9]{4}"]
+
+[[rule]]
+schema = "test"
+table = "test_river_[0-9]{4}"
+index = "river"
+type = "river"
+```
+
+"test_river_[0-9]{4}" is a wildcard table definition, which represents "test_river_0000" to "test_river_9999", at the same time, the table in the rule must be same as it. 
+
+At the above example, if you have 1024 sub tables, all tables will be synced into Elasticsearch with index "river" and type "river". 
+
 ## Todo
 
-+ Wildcard table source support, like "table_[0-9]{4}".
 + Filtering table field support, only fields in filter config will be synced.
 + Statistic.
 

@@ -35,22 +35,19 @@ func newDefaultRule(schema string, table string) *Rule {
 	return r
 }
 
-type Rules []*Rule
-
-func (r Rules) prepare() error {
-	for _, rule := range r {
-		if rule.FieldMapping == nil {
-			rule.FieldMapping = make(map[string]string)
-		}
-
-		if len(rule.Index) == 0 {
-			rule.Index = rule.Table
-		}
-
-		if len(rule.Type) == 0 {
-			rule.Type = rule.Index
-		}
+func (r *Rule) prepare() error {
+	if r.FieldMapping == nil {
+		r.FieldMapping = make(map[string]string)
 	}
+
+	if len(r.Index) == 0 {
+		r.Index = r.Table
+	}
+
+	if len(r.Type) == 0 {
+		r.Type = r.Index
+	}
+
 	return nil
 }
 

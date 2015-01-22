@@ -13,7 +13,7 @@ type SourceConfig struct {
 type Config struct {
 	MyAddr     string `toml:"my_addr"`
 	MyUser     string `toml:"my_user"`
-	MyPassword string `toml:"my_password"`
+	MyPassword string `toml:"my_pass"`
 
 	ESAddr string `toml:"es_addr"`
 
@@ -25,7 +25,7 @@ type Config struct {
 
 	Sources []SourceConfig `toml:"source"`
 
-	Rules Rules `toml:"rule"`
+	Rules []*Rule `toml:"rule"`
 }
 
 func NewConfigWithFile(name string) (*Config, error) {

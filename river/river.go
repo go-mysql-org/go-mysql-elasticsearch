@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -97,39 +98,109 @@ func NewRiver(c *Config) (*River, error) {
 	return r, nil
 }
 
-func (r *River) prepareRule(c *client.Conn) error {
+func (r *River) newRule(schema, table string) error {
+	key := ruleKey(schema, table)
+
+	if _, ok := r.rules[key]; ok {
+		return fmt.Errorf("duplicate source %s, %s defined in config", schema, table)
+	}
+
+	r.rules[key] = newDefaultRule(schema, table)
+	return nil
+}
+
+func (r *River) parseSource(c *client.Conn) (map[string][]string, error) {
+	wildTables := make(map[string][]string, len(r.c.Sources))
+
 	// first, check sources
 	for _, s := range r.c.Sources {
 		for _, table := range s.Tables {
-			key := ruleKey(s.Schema, table)
-
-			if _, ok := r.rules[key]; ok {
-				return fmt.Errorf("duplicate source %s, %s defined in config", s.Schema, table)
+			if len(s.Schema) == 0 {
+				return nil, fmt.Errorf("empty schema not allowed for source")
 			}
 
-			rule := newDefaultRule(s.Schema, table)
+			if regexp.QuoteMeta(table) != table {
+				if _, ok := wildTables[ruleKey(s.Schema, table)]; ok {
+					return nil, fmt.Errorf("duplicate wildcard table defined for %s.%s", s.Schema, table)
+				}
 
-			r.rules[key] = rule
+				tables := []string{}
+
+				sql := fmt.Sprintf(`SELECT table_name FROM information_schema.tables WHERE 
+                    table_name RLIKE "%s" AND table_schema = "%s";`, table, s.Schema)
+
+				res, err := c.Execute(sql)
+				if err != nil {
+					return nil, err
+				}
+
+				for i := 0; i < res.Resultset.RowNumber(); i++ {
+					f, _ := res.GetString(i, 0)
+					err := r.newRule(s.Schema, f)
+					if err != nil {
+						return nil, err
+					}
+
+					tables = append(tables, f)
+				}
+
+				wildTables[ruleKey(s.Schema, table)] = tables
+			} else {
+				err := r.newRule(s.Schema, table)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
 
 	if len(r.rules) == 0 {
-		return fmt.Errorf("no source data defined")
+		return nil, fmt.Errorf("no source data defined")
+	}
+
+	return wildTables, nil
+}
+
+func (r *River) prepareRule(c *client.Conn) error {
+	wildtables, err := r.parseSource(c)
+	if err != nil {
+		return err
 	}
 
 	if r.c.Rules != nil {
-		r.c.Rules.prepare()
-
 		// then, set custom mapping rule
 		for _, rule := range r.c.Rules {
-			key := ruleKey(rule.Schema, rule.Table)
-
-			if _, ok := r.rules[key]; !ok {
-				return fmt.Errorf("rule %s, %s not defined in source", rule.Schema, rule.Table)
+			if len(rule.Schema) == 0 {
+				return fmt.Errorf("empty schema not allowed for rule")
 			}
 
-			// use cusstom rule
-			r.rules[key] = rule
+			if regexp.QuoteMeta(rule.Table) != rule.Table {
+				//wildcard table
+				tables, ok := wildtables[ruleKey(rule.Schema, rule.Table)]
+				if !ok {
+					return fmt.Errorf("wildcard table for %s.%s is not defined in source", rule.Schema, rule.Table)
+				}
+
+				if len(rule.Index) == 0 {
+					return fmt.Errorf("wildcard table rule %s.%s must have a index, can not empty", rule.Schema, rule.Table)
+				}
+
+				rule.prepare()
+
+				for _, table := range tables {
+					rr := r.rules[ruleKey(rule.Schema, table)]
+					rr.Index = rule.Index
+					rr.Type = rule.Type
+					rr.FieldMapping = rule.FieldMapping
+				}
+			} else {
+				key := ruleKey(rule.Schema, rule.Table)
+				if _, ok := r.rules[key]; !ok {
+					return fmt.Errorf("rule %s, %s not defined in source", rule.Schema, rule.Table)
+				}
+				rule.prepare()
+				r.rules[key] = rule
+			}
 		}
 	}
 
