@@ -34,7 +34,7 @@ func (r *River) makeRequest(rule *Rule, dtype int, rows [][]interface{}) ([]*ela
 		if dtype == syncDeleteDoc {
 			req.Action = elastic.ActionDelete
 		} else {
-			r.makeReqData(req, rule, values)
+			r.makeInsertReqData(req, rule, values)
 		}
 
 		reqs = append(reqs, req)
@@ -65,6 +65,11 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 				rule.Table, len(rule.TableInfo.Columns), len(rows[i]))
 		}
 
+		if columnCount != len(rows[i+1]) {
+			return nil, fmt.Errorf("invalid table format for %s, column number is %d, but real data is %d",
+				rule.Table, len(rule.TableInfo.Columns), len(rows[i+1]))
+		}
+
 		beforeID, err := r.getDocID(rule, rows[i])
 		if err != nil {
 			return nil, err
@@ -85,7 +90,7 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 			req = &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: afterID}
 		}
 
-		r.makeReqData(req, rule, rows[i+1])
+		r.makeUpdateReqData(req, rule, rows[i], rows[i+1])
 
 		reqs = append(reqs, req)
 	}
@@ -117,21 +122,35 @@ func (r *River) syncDocument(rule *Rule, dtype int, rows [][]interface{}) error 
 	return err
 }
 
-func (r *River) makeReqData(req *elastic.BulkRequest, rule *Rule, values []interface{}) {
+func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values []interface{}) {
 	req.Data = make(map[string]interface{}, len(values))
 	req.Action = elastic.ActionIndex
 
 	for i, c := range rule.TableInfo.Columns {
-		if values[i] == nil {
-			// need to discard nil value ?????
-			continue
-		}
-
 		if name, ok := rule.FieldMapping[c.Name]; ok {
 			// has custom field mapping
 			req.Data[name] = values[i]
 		} else {
 			req.Data[c.Name] = values[i]
+		}
+	}
+}
+
+func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
+	beforeValues []interface{}, afterValues []interface{}) {
+	req.Data = make(map[string]interface{}, len(beforeValues))
+	req.Action = elastic.ActionIndex
+
+	for i, c := range rule.TableInfo.Columns {
+		if beforeValues[i] == afterValues[i] {
+			//nothing changed
+			continue
+		}
+		if name, ok := rule.FieldMapping[c.Name]; ok {
+			// has custom field mapping
+			req.Data[name] = afterValues[i]
+		} else {
+			req.Data[c.Name] = afterValues[i]
 		}
 	}
 }
