@@ -65,11 +65,21 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river", "test_river1_[0-9]{4}"}}}
 
-	cfg.Rules = Rules{&Rule{Schema: "test",
-		Table:        "test_river1_[0-9]{4}",
-		Index:        "river",
-		Type:         "river",
-		FieldMapping: map[string]string{"title": "es_title"}}}
+	cfg.Rules = Rules{
+		&Rule{
+			Schema:       "test",
+			Table:        "test_river1_[0-9]{4}",
+			Index:        "river",
+			Type:         "river",
+			FieldMapping: map[string]string{"title": "es_title"}},
+
+		&Rule{
+			Schema:       "test",
+			Table:        "test_river",
+			Index:        "river",
+			Type:         "river",
+			FieldMapping: map[string]string{"title": "es_title"}},
+	}
 
 	s.r, err = NewRiver(cfg)
 	c.Assert(err, IsNil)
@@ -184,12 +194,12 @@ func (s *riverTestSuite) TestRiver(c *C) {
 
 	r = s.testElasticGet(c, "2")
 	c.Assert(r.Found, Equals, true)
-	c.Assert(r.Source["title"], Equals, "second 2")
+	c.Assert(r.Source["es_title"], Equals, "second 2")
 
 	r = s.testElasticGet(c, "3")
 	c.Assert(r.Found, Equals, false)
 
 	r = s.testElasticGet(c, "30")
 	c.Assert(r.Found, Equals, true)
-	c.Assert(r.Source["title"], Equals, "second 30")
+	c.Assert(r.Source["es_title"], Equals, "second 30")
 }
