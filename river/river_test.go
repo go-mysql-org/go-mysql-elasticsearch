@@ -2,6 +2,7 @@ package river
 
 import (
 	"flag"
+	"fmt"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/client"
 	. "gopkg.in/check.v1"
@@ -31,17 +32,22 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	s.testExecute(c, "SET SESSION binlog_format = 'ROW'")
 
-	s.testExecute(c, "DROP TABLE IF EXISTS test_river")
-
-	str := `
-        CREATE TABLE IF NOT EXISTS test_river (
+	schema := `
+        CREATE TABLE IF NOT EXISTS %s (
             id INT, 
             title VARCHAR(256),
             content VARCHAR(256),
             PRIMARY KEY(id)) ENGINE=INNODB;
     `
 
-	s.testExecute(c, str)
+	s.testExecute(c, "DROP TABLE IF EXISTS test_river")
+	s.testExecute(c, fmt.Sprintf(schema, "test_river"))
+
+	for i := 0; i < 10; i++ {
+		table := fmt.Sprintf("test_river1_%04d", i)
+		s.testExecute(c, fmt.Sprintf("DROP TABLE IF EXISTS %s", table))
+		s.testExecute(c, fmt.Sprintf(schema, table))
+	}
 
 	cfg := new(Config)
 	cfg.MyAddr = *my_addr
@@ -57,10 +63,10 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	os.RemoveAll(cfg.DataDir)
 
-	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river"}}}
+	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river", "test_river1_[0-9]{4}"}}}
 
 	cfg.Rules = Rules{&Rule{Schema: "test",
-		Table:        "test_river",
+		Table:        "test_river1_[0-9]{4}",
 		Index:        "river",
 		Type:         "river",
 		FieldMapping: map[string]string{"title": "es_title"}}}
@@ -122,6 +128,11 @@ func (s *riverTestSuite) testPrepareData(c *C) {
 	s.testExecute(c, "INSERT INTO test_river (id, title, content) VALUES (?, ?, ?)", 2, "second", "hello mysql 2")
 	s.testExecute(c, "INSERT INTO test_river (id, title, content) VALUES (?, ?, ?)", 3, "third", "hello elaticsearch 3")
 	s.testExecute(c, "INSERT INTO test_river (id, title, content) VALUES (?, ?, ?)", 4, "fouth", "hello go-mysql-elasticserach 4")
+
+	for i := 0; i < 10; i++ {
+		table := fmt.Sprintf("test_river1_%04d", i)
+		s.testExecute(c, fmt.Sprintf("INSERT INTO %s (id, title, content) VALUES (?, ?, ?)", table), 5+i, table, "hello")
+	}
 }
 
 func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
@@ -154,8 +165,13 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	var r *elastic.Response
 	r = s.testElasticGet(c, "1")
 	c.Assert(r.Found, Equals, true)
-	r = s.testElasticGet(c, "10")
+	r = s.testElasticGet(c, "100")
 	c.Assert(r.Found, Equals, false)
+
+	for i := 0; i < 10; i++ {
+		r = s.testElasticGet(c, fmt.Sprintf("%d", 5+i))
+		c.Assert(r.Found, Equals, true)
+	}
 
 	s.testExecute(c, "UPDATE test_river SET title = ? WHERE id = ?", "second 2", 2)
 	s.testExecute(c, "DELETE FROM test_river WHERE id = ?", 1)
@@ -168,12 +184,12 @@ func (s *riverTestSuite) TestRiver(c *C) {
 
 	r = s.testElasticGet(c, "2")
 	c.Assert(r.Found, Equals, true)
-	c.Assert(r.Source["es_title"], Equals, "second 2")
+	c.Assert(r.Source["title"], Equals, "second 2")
 
 	r = s.testElasticGet(c, "3")
 	c.Assert(r.Found, Equals, false)
 
 	r = s.testElasticGet(c, "30")
 	c.Assert(r.Found, Equals, true)
-	c.Assert(r.Source["es_title"], Equals, "second 30")
+	c.Assert(r.Source["title"], Equals, "second 30")
 }
