@@ -2,6 +2,14 @@ go-mysql-elasticsearch is a service syncing your MySQL data into Elasticsearch a
 
 It uses `mysqldump` to fetch the origin data at first, then syncs data incrementally with binlog.
 
+## Install 
+
++ Install Go and set your [GOPATH](https://golang.org/doc/code.html#GOPATH)
++ Install godep `go get github.com/tools/godep`
++ `go get github.com/siddontang/go-mysql-elasticsearch`, it will print some messages in console, skip it. :-)
++ cd `$GOPATH/src/github.com/siddontang/go-mysql-elasticsearch`
++ `make`
+
 ## How to use?
 
 + Create table in MySQL.
@@ -9,7 +17,7 @@ It uses `mysqldump` to fetch the origin data at first, then syncs data increment
 + Config base, see the example config [river.toml](./etc/river.toml).
 + Set MySQL source in config file, see [Source](#source) below.
 + Customize MySQL and Elasticsearch mapping rule in config file, see [Rule](#rule) below.
-+ Start `go-mysql-elasticsearch -config=./etc/river.toml` and enjoy it.
++ Start `./bin/go-mysql-elasticsearch -config=./etc/river.toml` and enjoy it.
 
 ## Notice
 
@@ -88,13 +96,15 @@ At the above example, if you have 1024 sub tables, all tables will be synced int
 Although there are some other MySQL rivers for Elasticsearch, like [elasticsearch-river-jdbc](https://github.com/jprante/elasticsearch-river-jdbc), [elasticsearch-river-mysql](https://github.com/scharron/elasticsearch-river-mysql), I still want to build a new one with Go, why?
 
 + Customization, I want to decide which table to be synced, the associated index and type name, or even the field name in Elasticsearch.
-+ Incremental update with binlog, and can resume from the last sync position when the service starts. 
++ Incremental update with binlog, and can resume from the last sync position when the service starts again. 
 + A common sync framework not only for Elasticsearch but also for others, like memcached, redis, etc...
++ Wildcard tables support, we have many sub tables like table_0000 - table_1023, but want use a unique Elasticsearch index and type. 
 
 ## Todo
 
 + Filtering table field support, only fields in filter config will be synced.
 + Statistic.
++ Docker
 
 ## Feedback
 
