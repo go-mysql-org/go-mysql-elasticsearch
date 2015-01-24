@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/mysql"
+	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go/log"
 	"time"
 )
@@ -76,21 +77,38 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 		}
 
 		afterID, err := r.getDocID(rule, rows[i+1])
+
 		if err != nil {
-			return nil, err
+			// for minimal row image, sometimes id is nil, only other fields changed
+			if r.rowImage == replication.BINLOG_ROW_IAMGE_MINIMAL {
+				afterID = beforeID
+
+				// after image has no PK, so copy from before image
+				r.copyUpdatePK(rule, rows[i], rows[i+1])
+			} else {
+				return nil, err
+			}
 		}
 
 		req := &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: beforeID}
 
 		if beforeID != afterID {
 			// PK has been changed in update, delete old id first
+			// If you use binlog row minimal or noblog image, this may cause data lost, because
+			// the binlog can not contain full data for the new id data
+			if r.rowImage != replication.BINLOG_ROW_IMAGE_FULL {
+				log.Warnf("PK changed index %s, type %s, id %s -> %s, but MySQL use binlog row %s image, data may lost",
+					rule.Index, rule.Type, beforeID, afterID, r.rowImage)
+			}
+
 			req.Action = elastic.ActionDelete
 			reqs = append(reqs, req)
 
 			req = &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: afterID}
+			r.makeInsertReqData(req, rule, rows[i+1])
+		} else {
+			r.makeUpdateReqData(req, rule, rows[i], rows[i+1])
 		}
-
-		r.makeUpdateReqData(req, rule, rows[i], rows[i+1])
 
 		reqs = append(reqs, req)
 	}
@@ -139,7 +157,9 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 	beforeValues []interface{}, afterValues []interface{}) {
 	req.Data = make(map[string]interface{}, len(beforeValues))
-	req.Action = elastic.ActionIndex
+
+	// maybe dangerous if something wrong delete before?
+	req.Action = elastic.ActionUpdate
 
 	for i, c := range rule.TableInfo.Columns {
 		if beforeValues[i] == afterValues[i] {
@@ -164,6 +184,12 @@ func (r *River) getDocID(rule *Rule, values []interface{}) (string, error) {
 	}
 
 	return fmt.Sprintf("%v", id), nil
+}
+
+// only use for binlog row minimal image
+func (r *River) copyUpdatePK(rule *Rule, beforeValues []interface{}, afterValues []interface{}) {
+	index := rule.TableInfo.PKColumns[0]
+	afterValues[index] = beforeValues[index]
 }
 
 func (r *River) syncLoop() {
@@ -229,9 +255,18 @@ func (r *River) doBulk(reqs []*elastic.BulkRequest, force bool) []*elastic.BulkR
 			end = size
 		}
 
-		if _, err := r.es.Bulk(reqs[start:end]); err != nil {
+		if resp, err := r.es.Bulk(reqs[start:end]); err != nil {
 			pos := r.m.Pos()
 			log.Errorf("sync docs err %v after binlog (%s, %d)", err, pos.Name, pos.Pos)
+		} else if resp.Errors {
+			for i := 0; i < len(resp.Items); i++ {
+				for action, item := range resp.Items[i] {
+					if len(item.Error) > 0 {
+						log.Errorf("%s index: %s, type: %s, id: %s, status: %d, error: %s",
+							action, item.Index, item.Type, item.ID, item.Status, item.Error)
+					}
+				}
+			}
 		}
 
 		if size == end {

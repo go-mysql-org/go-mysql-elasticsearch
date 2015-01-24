@@ -15,23 +15,23 @@
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/client",
-			"Rev": "044e83f397fb05c854b0ec70c6a6d73361b5fcc8"
+			"Rev": "515d0ccf3ca3943350923fa0d1ff588f8b2661af"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/mysql",
-			"Rev": "044e83f397fb05c854b0ec70c6a6d73361b5fcc8"
+			"Rev": "515d0ccf3ca3943350923fa0d1ff588f8b2661af"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/packet",
-			"Rev": "044e83f397fb05c854b0ec70c6a6d73361b5fcc8"
+			"Rev": "515d0ccf3ca3943350923fa0d1ff588f8b2661af"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/replication",
-			"Rev": "044e83f397fb05c854b0ec70c6a6d73361b5fcc8"
+			"Rev": "515d0ccf3ca3943350923fa0d1ff588f8b2661af"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/schema",
-			"Rev": "044e83f397fb05c854b0ec70c6a6d73361b5fcc8"
+			"Rev": "515d0ccf3ca3943350923fa0d1ff588f8b2661af"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go/hack",

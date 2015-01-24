@@ -22,7 +22,7 @@ It uses `mysqldump` to fetch the origin data at first, then syncs data increment
 ## Notice
 
 + binlog format must be **row**.
-+ binlog row image may be **full** for MySQL. (MariaDB only supports full row image).
++ binlog row image may be **full** for MySQL, you may lost some field data if you update PK data in MySQL with minimal or noblob binlog row image. MariaDB only supports full row image. 
 + Can not alter table format at runtime.
 + MySQL table which will be synced must have a PK(primary key), multi columns PK is not allowed now. The PK data will be used as "id" in Elasticsearch.  
 + You should create the associated mappings in Elasticsearch first, I don't think using the default mapping is a wise decision, you must know how to search accurately.

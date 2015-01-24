@@ -40,6 +40,11 @@ type River struct {
 	ev chan interface{}
 
 	bulkSize sync2.AtomicInt64
+
+	// for MySQL binlog row image
+	rowImage string
+
+	dumpDoneCh chan struct{}
 }
 
 func NewRiver(c *Config) (*River, error) {
@@ -50,6 +55,8 @@ func NewRiver(c *Config) (*River, error) {
 	r.quit = make(chan struct{})
 
 	r.rules = make(map[string]*Rule)
+
+	r.dumpDoneCh = make(chan struct{})
 
 	r.parser = &parseHandler{r: r}
 
@@ -227,6 +234,18 @@ func (r *River) checkBinlogFormat(c *client.Conn) error {
 		return fmt.Errorf("binlog must ROW format, but %s now", f)
 	}
 
+	// default binlog row image, mariadb use full too
+	r.rowImage = replication.BINLOG_ROW_IMAGE_FULL
+	// need to check MySQL binlog row image? full, minimal or noblob?
+	if r.c.Flavor == mysql.MySQLFlavor {
+		if res, err = c.Execute(`SHOW GLOBAL VARIABLES LIKE "binlog_row_image"`); err != nil {
+			return err
+		}
+
+		r.rowImage, _ = res.GetString(0, 1)
+		log.Infof("MySQL use binlog row %s image", r.rowImage)
+	}
+
 	return nil
 }
 
@@ -268,6 +287,8 @@ func (r *River) Run() error {
 		log.Fatalf("dump mysql error %v", err)
 		return err
 	}
+
+	close(r.dumpDoneCh)
 
 	if err := r.syncBinlog(); err != nil {
 		if !r.closed() || err != mysql.ErrBadConn {

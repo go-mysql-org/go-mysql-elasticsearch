@@ -177,7 +177,7 @@ func (s *riverTestSuite) TestRiver(c *C) {
 
 	go s.r.Run()
 
-	s.testWaitSyncDone(c)
+	<-s.r.dumpDoneCh
 
 	var r *elastic.Response
 	r = s.testElasticGet(c, "1")
