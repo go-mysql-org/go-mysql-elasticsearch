@@ -283,7 +283,7 @@ func (r *River) waitPos(pos mysql.Position, seconds int) {
 	for i := 0; i < seconds; i++ {
 		p := r.m.Pos()
 		if p.Compare(pos) >= 0 {
-			log.Infof("wait pos %v with %d seconds", pos, i)
+			log.Infof("wait pos %v with %d seconds, now pos: %v", pos, i, p)
 			return
 		}
 

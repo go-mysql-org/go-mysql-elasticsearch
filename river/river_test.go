@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/client"
+	"github.com/siddontang/go-mysql/mysql"
 	. "gopkg.in/check.v1"
 	"os"
 	"testing"
-	"time"
 )
 
 var my_addr = flag.String("my_addr", "127.0.0.1:3306", "MySQL addr")
@@ -163,13 +163,13 @@ func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
 }
 
 func (s *riverTestSuite) testWaitSyncDone(c *C) {
-	for {
-		time.Sleep(1 * time.Second)
+	r, err := s.c.Execute("SHOW MASTER STATUS")
+	c.Assert(err, IsNil)
 
-		if s.r.bulkSize.Get() == 0 {
-			break
-		}
-	}
+	name, _ := r.GetString(0, 0)
+	pos, _ := r.GetUint(0, 1)
+
+	s.r.waitPos(mysql.Position{name, uint32(pos)}, 10)
 }
 
 func (s *riverTestSuite) TestRiver(c *C) {
