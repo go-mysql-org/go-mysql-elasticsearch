@@ -61,7 +61,7 @@ func (s *schemaTestSuite) SetUpSuite(c *C) {
 	_, err = s.conn.Execute(fmt.Sprintf(str, 2, 2))
 	c.Assert(err, IsNil)
 
-	str = `INSERT INTO test%d.t%d (name) VALUES ("a"), ("b")`
+	str = `INSERT INTO test%d.t%d (name) VALUES ("a"), ("b"), ("\\"), ("''")`
 
 	_, err = s.conn.Execute(fmt.Sprintf(str, 1, 1))
 	c.Assert(err, IsNil)
@@ -128,4 +128,21 @@ func (s *schemaTestSuite) TestParse(c *C) {
 
 	err = Parse(&buf, new(testParseHandler))
 	c.Assert(err, IsNil)
+}
+
+func (s *schemaTestSuite) TestParseValue(c *C) {
+	str := `'abc\\',''`
+	values, err := parseValues(str)
+	c.Assert(err, IsNil)
+	c.Assert(values, DeepEquals, []string{`'abc\\'`, `''`})
+
+	str = `123,'\Z#÷QÎx£. Æ‘ÇoPâÅ_\r—\\','','qn'`
+	values, err = parseValues(str)
+	c.Assert(err, IsNil)
+	c.Assert(values, HasLen, 4)
+
+	str = `123,'\Z#÷QÎx£. Æ‘ÇoPâÅ_\r—\\','','qn\'`
+	values, err = parseValues(str)
+	c.Assert(err, NotNil)
+
 }

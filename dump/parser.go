@@ -3,6 +3,7 @@ package dump
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"regexp"
 	"strconv"
@@ -26,7 +27,7 @@ var valuesExp *regexp.Regexp
 func init() {
 	binlogExp = regexp.MustCompile("^CHANGE MASTER TO MASTER_LOG_FILE='(.+)', MASTER_LOG_POS=(\\d+);")
 	useExp = regexp.MustCompile("^USE `(.+)`;")
-	valuesExp = regexp.MustCompile("^INSERT INTO `(.+)` VALUES \\((.+)\\);")
+	valuesExp = regexp.MustCompile("^INSERT INTO `(.+)` VALUES \\((.+)\\);$")
 }
 
 // Parse the dump data with Dumper generate.
@@ -52,7 +53,7 @@ func Parse(r io.Reader, h ParseHandler) error {
 				name := m[0][1]
 				pos, err := strconv.ParseUint(m[0][2], 10, 64)
 				if err != nil {
-					return err
+					return fmt.Errorf("parse binlog %v err, invalid number", line)
 				}
 
 				if err = h.BinLog(name, pos); err != nil && err != ErrSkip {
@@ -70,7 +71,10 @@ func Parse(r io.Reader, h ParseHandler) error {
 		if m := valuesExp.FindAllStringSubmatch(line, -1); len(m) == 1 {
 			table := m[0][1]
 
-			values := parseValues(m[0][2])
+			values, err := parseValues(m[0][2])
+			if err != nil {
+				return fmt.Errorf("parse values %v err", line)
+			}
 
 			if err = h.Data(db, table, values); err != nil && err != ErrSkip {
 				return err
@@ -81,7 +85,7 @@ func Parse(r io.Reader, h ParseHandler) error {
 	return nil
 }
 
-func parseValues(str string) []string {
+func parseValues(str string) ([]string, error) {
 	// values are seperated by comma, but we can not split using comma directly
 	// string is enclosed by single quote
 
@@ -102,11 +106,23 @@ func parseValues(str string) []string {
 		} else {
 			// read string until another single quote
 			j := i + 1
-			last := str[i]
 
-			for ; !(str[j] == '\'' && last != '\\'); j++ {
-				last = str[j]
+			for j < len(str) {
+				if str[j] == '\\' {
+					// skip escaped character
+					j += 2
+					continue
+				} else if str[j] == '\'' {
+					break
+				} else {
+					j++
+				}
 			}
+
+			if j >= len(str) {
+				return nil, fmt.Errorf("parse quote values error")
+			}
+
 			values = append(values, str[i:j+1])
 			// skip ' and ,
 			i = j + 2
@@ -115,5 +131,5 @@ func parseValues(str string) []string {
 		// need skip blank???
 	}
 
-	return values
+	return values, nil
 }
