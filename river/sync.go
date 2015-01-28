@@ -5,7 +5,9 @@ import (
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
+	"github.com/siddontang/go-mysql/schema"
 	"github.com/siddontang/go/log"
+	"strings"
 	"time"
 )
 
@@ -16,7 +18,7 @@ const (
 )
 
 // for insert and delete
-func (r *River) makeRequest(rule *Rule, dtype int, rows [][]interface{}) ([]*elastic.BulkRequest, error) {
+func (r *River) makeRequest(rule *Rule, dtype int, rows [][]interface{}, binlog bool) ([]*elastic.BulkRequest, error) {
 	reqs := make([]*elastic.BulkRequest, 0, len(rows))
 
 	for _, values := range rows {
@@ -35,7 +37,7 @@ func (r *River) makeRequest(rule *Rule, dtype int, rows [][]interface{}) ([]*ela
 		if dtype == syncDeleteDoc {
 			req.Action = elastic.ActionDelete
 		} else {
-			r.makeInsertReqData(req, rule, values)
+			r.makeInsertReqData(req, rule, values, binlog)
 		}
 
 		reqs = append(reqs, req)
@@ -44,15 +46,15 @@ func (r *River) makeRequest(rule *Rule, dtype int, rows [][]interface{}) ([]*ela
 	return reqs, nil
 }
 
-func (r *River) makeInsertRequest(rule *Rule, rows [][]interface{}) ([]*elastic.BulkRequest, error) {
-	return r.makeRequest(rule, syncInsertDoc, rows)
+func (r *River) makeInsertRequest(rule *Rule, rows [][]interface{}, binlog bool) ([]*elastic.BulkRequest, error) {
+	return r.makeRequest(rule, syncInsertDoc, rows, binlog)
 }
 
-func (r *River) makeDeleteRequest(rule *Rule, rows [][]interface{}) ([]*elastic.BulkRequest, error) {
-	return r.makeRequest(rule, syncDeleteDoc, rows)
+func (r *River) makeDeleteRequest(rule *Rule, rows [][]interface{}, binlog bool) ([]*elastic.BulkRequest, error) {
+	return r.makeRequest(rule, syncDeleteDoc, rows, binlog)
 }
 
-func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.BulkRequest, error) {
+func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}, binlog bool) ([]*elastic.BulkRequest, error) {
 	if len(rows)%2 != 0 {
 		return nil, fmt.Errorf("invalid update rows event, must have 2x rows, but %d", len(rows))
 	}
@@ -105,9 +107,9 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 			reqs = append(reqs, req)
 
 			req = &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: afterID}
-			r.makeInsertReqData(req, rule, rows[i+1])
+			r.makeInsertReqData(req, rule, rows[i+1], binlog)
 		} else {
-			r.makeUpdateReqData(req, rule, rows[i], rows[i+1])
+			r.makeUpdateReqData(req, rule, rows[i], rows[i+1], binlog)
 		}
 
 		reqs = append(reqs, req)
@@ -116,7 +118,7 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 	return reqs, nil
 }
 
-func (r *River) syncDocument(rule *Rule, dtype int, rows [][]interface{}) error {
+func (r *River) syncDocument(rule *Rule, dtype int, rows [][]interface{}, binlog bool) error {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -126,11 +128,11 @@ func (r *River) syncDocument(rule *Rule, dtype int, rows [][]interface{}) error 
 
 	switch dtype {
 	case syncInsertDoc:
-		reqs, err = r.makeInsertRequest(rule, rows)
+		reqs, err = r.makeInsertRequest(rule, rows, binlog)
 	case syncDeleteDoc:
-		reqs, err = r.makeDeleteRequest(rule, rows)
+		reqs, err = r.makeDeleteRequest(rule, rows, binlog)
 	case syncUpdateDoc:
-		reqs, err = r.makeUpdateRequest(rule, rows)
+		reqs, err = r.makeUpdateRequest(rule, rows, binlog)
 	}
 
 	r.bulkSize.Add(int64(len(reqs)))
@@ -140,22 +142,45 @@ func (r *River) syncDocument(rule *Rule, dtype int, rows [][]interface{}) error 
 	return err
 }
 
-func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values []interface{}) {
+func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}, binlog bool) interface{} {
+	if !binlog {
+		return value
+	}
+
+	switch col.Type {
+	case schema.TYPE_ENUM:
+		//todo, error handle if index overflow???
+		return col.EnumValues[value.(int64)-1]
+	case schema.TYPE_SET:
+		bitmask := value.(int64)
+		sets := make([]string, 0, len(col.SetValues))
+		for i, s := range col.SetValues {
+			if bitmask&int64(1<<uint(i)) > 0 {
+				sets = append(sets, s)
+			}
+		}
+		return strings.Join(sets, ",")
+	default:
+		return value
+	}
+}
+
+func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values []interface{}, binlog bool) {
 	req.Data = make(map[string]interface{}, len(values))
 	req.Action = elastic.ActionIndex
 
 	for i, c := range rule.TableInfo.Columns {
 		if name, ok := rule.FieldMapping[c.Name]; ok {
 			// has custom field mapping
-			req.Data[name] = values[i]
+			req.Data[name] = r.makeReqColumnData(&c, values[i], binlog)
 		} else {
-			req.Data[c.Name] = values[i]
+			req.Data[c.Name] = r.makeReqColumnData(&c, values[i], binlog)
 		}
 	}
 }
 
 func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
-	beforeValues []interface{}, afterValues []interface{}) {
+	beforeValues []interface{}, afterValues []interface{}, binlog bool) {
 	req.Data = make(map[string]interface{}, len(beforeValues))
 
 	// maybe dangerous if something wrong delete before?
@@ -168,9 +193,9 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 		}
 		if name, ok := rule.FieldMapping[c.Name]; ok {
 			// has custom field mapping
-			req.Data[name] = afterValues[i]
+			req.Data[name] = r.makeReqColumnData(&c, afterValues[i], binlog)
 		} else {
-			req.Data[c.Name] = afterValues[i]
+			req.Data[c.Name] = r.makeReqColumnData(&c, afterValues[i], binlog)
 		}
 	}
 }

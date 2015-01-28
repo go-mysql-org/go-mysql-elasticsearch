@@ -37,6 +37,8 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
             id INT, 
             title VARCHAR(256),
             content VARCHAR(256),
+            tenum ENUM("e1", "e2", "e3"),
+            tset SET("a", "b", "c"),
             PRIMARY KEY(id)) ENGINE=INNODB;
     `
 
@@ -141,14 +143,14 @@ func (s *riverTestSuite) testExecute(c *C, query string, args ...interface{}) {
 }
 
 func (s *riverTestSuite) testPrepareData(c *C) {
-	s.testExecute(c, "INSERT INTO test_river (id, title, content) VALUES (?, ?, ?)", 1, "first", "hello go 1")
-	s.testExecute(c, "INSERT INTO test_river (id, title, content) VALUES (?, ?, ?)", 2, "second", "hello mysql 2")
-	s.testExecute(c, "INSERT INTO test_river (id, title, content) VALUES (?, ?, ?)", 3, "third", "hello elaticsearch 3")
-	s.testExecute(c, "INSERT INTO test_river (id, title, content) VALUES (?, ?, ?)", 4, "fouth", "hello go-mysql-elasticserach 4")
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 1, "first", "hello go 1", "e1", "a,b")
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 2, "second", "hello mysql 2", "e2", "b,c")
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 3, "third", "hello elaticsearch 3", "e3", "c")
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 4, "fouth", "hello go-mysql-elasticserach 4", "e1", "a,b,c")
 
 	for i := 0; i < 10; i++ {
 		table := fmt.Sprintf("test_river_%04d", i)
-		s.testExecute(c, fmt.Sprintf("INSERT INTO %s (id, title, content) VALUES (?, ?, ?)", table), 5+i, "abc", "hello")
+		s.testExecute(c, fmt.Sprintf("INSERT INTO %s (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", table), 5+i, "abc", "hello", "e1", "a,b,c")
 	}
 }
 
@@ -182,6 +184,9 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	var r *elastic.Response
 	r = s.testElasticGet(c, "1")
 	c.Assert(r.Found, Equals, true)
+	c.Assert(r.Source["tenum"], Equals, "e1")
+	c.Assert(r.Source["tset"], Equals, "a,b")
+
 	r = s.testElasticGet(c, "100")
 	c.Assert(r.Found, Equals, false)
 
@@ -191,7 +196,7 @@ func (s *riverTestSuite) TestRiver(c *C) {
 		c.Assert(r.Source["es_title"], Equals, "abc")
 	}
 
-	s.testExecute(c, "UPDATE test_river SET title = ? WHERE id = ?", "second 2", 2)
+	s.testExecute(c, "UPDATE test_river SET title = ?, tenum = ?, tset = ? WHERE id = ?", "second 2", "e3", "a,b,c", 2)
 	s.testExecute(c, "DELETE FROM test_river WHERE id = ?", 1)
 	s.testExecute(c, "UPDATE test_river SET title = ?, id = ? WHERE id = ?", "second 30", 30, 3)
 
@@ -208,6 +213,8 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	r = s.testElasticGet(c, "2")
 	c.Assert(r.Found, Equals, true)
 	c.Assert(r.Source["es_title"], Equals, "second 2")
+	c.Assert(r.Source["tenum"], Equals, "e3")
+	c.Assert(r.Source["tset"], Equals, "a,b,c")
 
 	r = s.testElasticGet(c, "3")
 	c.Assert(r.Found, Equals, false)

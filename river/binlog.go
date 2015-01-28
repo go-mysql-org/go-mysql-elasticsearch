@@ -61,11 +61,11 @@ func (r *River) handleRowsEvent(e *replication.BinlogEvent) error {
 
 	switch e.Header.EventType {
 	case replication.WRITE_ROWS_EVENTv1, replication.WRITE_ROWS_EVENTv2:
-		return r.syncDocument(rule, syncInsertDoc, ev.Rows)
+		return r.syncDocument(rule, syncInsertDoc, ev.Rows, true)
 	case replication.DELETE_ROWS_EVENTv1, replication.DELETE_ROWS_EVENTv2:
-		return r.syncDocument(rule, syncDeleteDoc, ev.Rows)
+		return r.syncDocument(rule, syncDeleteDoc, ev.Rows, true)
 	case replication.UPDATE_ROWS_EVENTv1, replication.UPDATE_ROWS_EVENTv2:
-		return r.syncDocument(rule, syncUpdateDoc, ev.Rows)
+		return r.syncDocument(rule, syncUpdateDoc, ev.Rows, true)
 	default:
 		return fmt.Errorf("%s not supported now", e.Header.EventType)
 	}

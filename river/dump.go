@@ -63,7 +63,7 @@ func (h *parseHandler) Data(db string, table string, values []string) error {
 		}
 	}
 
-	if err := h.r.syncDocument(rule, syncInsertDoc, [][]interface{}{vs}); err != nil {
+	if err := h.r.syncDocument(rule, syncInsertDoc, [][]interface{}{vs}, false); err != nil {
 		log.Errorf("dump: sync %v  error %v", vs, err)
 	}
 
