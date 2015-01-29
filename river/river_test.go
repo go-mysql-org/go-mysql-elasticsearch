@@ -200,6 +200,12 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	s.testExecute(c, "DELETE FROM test_river WHERE id = ?", 1)
 	s.testExecute(c, "UPDATE test_river SET title = ?, id = ? WHERE id = ?", "second 30", 30, 3)
 
+	// so we can insert invalid data
+	s.testExecute(c, `SET SESSION sql_mode="NO_ENGINE_SUBSTITUTION";`)
+
+	// bad insert
+	s.testExecute(c, "UPDATE test_river SET title = ?, tenum = ?, tset = ? WHERE id = ?", "second 2", "e5", "a,b,c,d", 4)
+
 	for i := 0; i < 10; i++ {
 		table := fmt.Sprintf("test_river_%04d", i)
 		s.testExecute(c, fmt.Sprintf("UPDATE %s SET title = ? WHERE id = ?", table), "hello", 5+i)
@@ -214,6 +220,11 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	c.Assert(r.Found, Equals, true)
 	c.Assert(r.Source["es_title"], Equals, "second 2")
 	c.Assert(r.Source["tenum"], Equals, "e3")
+	c.Assert(r.Source["tset"], Equals, "a,b,c")
+
+	r = s.testElasticGet(c, "4")
+	c.Assert(r.Found, Equals, true)
+	c.Assert(r.Source["tenum"], Equals, "")
 	c.Assert(r.Source["tset"], Equals, "a,b,c")
 
 	r = s.testElasticGet(c, "3")

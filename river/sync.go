@@ -149,8 +149,14 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}, bi
 
 	switch col.Type {
 	case schema.TYPE_ENUM:
-		//todo, error handle if index overflow???
-		return col.EnumValues[value.(int64)-1]
+		eNum := value.(int64) - 1
+		if eNum < 0 || eNum >= int64(len(col.EnumValues)) {
+			// we insert invalid enum value before, so return empty
+			log.Warnf("invalid binlog enum index %d, for enum %v", eNum, col.EnumValues)
+			return ""
+		}
+
+		return col.EnumValues[eNum]
 	case schema.TYPE_SET:
 		bitmask := value.(int64)
 		sets := make([]string, 0, len(col.SetValues))
