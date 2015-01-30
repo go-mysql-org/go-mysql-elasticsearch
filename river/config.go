@@ -17,6 +17,8 @@ type Config struct {
 
 	ESAddr string `toml:"es_addr"`
 
+	StatAddr string `toml:"stat_addr"`
+
 	ServerID uint32 `toml:"server_id"`
 	Flavor   string `toml:"flavor"`
 	DataDir  string `toml:"data_dir"`

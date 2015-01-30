@@ -63,6 +63,8 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 	cfg.DataDir = "/tmp/test_river"
 	cfg.DumpExec = "mysqldump"
 
+	cfg.StatAddr = "127.0.0.1:12800"
+
 	os.RemoveAll(cfg.DataDir)
 
 	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river", "test_river_[0-9]{4}"}}}

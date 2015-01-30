@@ -45,6 +45,11 @@ type River struct {
 	rowImage string
 
 	dumpDoneCh chan struct{}
+
+	connLock sync.Mutex
+	conn     *client.Conn
+
+	st *stat
 }
 
 func NewRiver(c *Config) (*River, error) {
@@ -64,17 +69,18 @@ func NewRiver(c *Config) (*River, error) {
 
 	os.MkdirAll(c.DataDir, 0755)
 
-	conn, err := client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, "")
+	var err error
+
+	r.conn, err = client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, "")
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
-	if err = r.checkBinlogFormat(conn); err != nil {
+	if err = r.checkBinlogFormat(r.conn); err != nil {
 		return nil, err
 	}
 
-	if err = r.prepareRule(conn); err != nil {
+	if err = r.prepareRule(r.conn); err != nil {
 		return nil, err
 	}
 
@@ -101,6 +107,9 @@ func NewRiver(c *Config) (*River, error) {
 	if err = r.prepareSyncer(); err != nil {
 		return nil, err
 	}
+
+	r.st = &stat{r: r}
+	go r.st.Run(r.c.StatAddr)
 
 	return r, nil
 }
@@ -304,6 +313,10 @@ func (r *River) Close() {
 	log.Infof("closing river")
 	close(r.quit)
 
+	r.connLock.Lock()
+	r.conn.Close()
+	r.connLock.Unlock()
+
 	r.syncer.Close()
 
 	r.wg.Wait()
@@ -318,4 +331,30 @@ func (r *River) closed() bool {
 	default:
 		return false
 	}
+}
+
+func (r *River) executeSql(cmd string, args ...interface{}) (rr *mysql.Result, err error) {
+	r.connLock.Lock()
+	defer r.connLock.Unlock()
+
+	retryNum := 3
+	for i := 0; i < retryNum; i++ {
+		if r.conn == nil {
+			r.conn, err = client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, "")
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		rr, err = r.conn.Execute(cmd, args...)
+		if err != nil && err != mysql.ErrBadConn {
+			return
+		} else if err == mysql.ErrBadConn {
+			r.conn = nil
+			continue
+		} else {
+			return
+		}
+	}
+	return
 }

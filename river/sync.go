@@ -36,8 +36,10 @@ func (r *River) makeRequest(rule *Rule, dtype int, rows [][]interface{}, binlog 
 
 		if dtype == syncDeleteDoc {
 			req.Action = elastic.ActionDelete
+			r.st.DeleteNum.Add(1)
 		} else {
 			r.makeInsertReqData(req, rule, values, binlog)
+			r.st.InsertNum.Add(1)
 		}
 
 		reqs = append(reqs, req)
@@ -108,8 +110,12 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}, binlog bool)
 
 			req = &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: afterID}
 			r.makeInsertReqData(req, rule, rows[i+1], binlog)
+
+			r.st.DeleteNum.Add(1)
+			r.st.InsertNum.Add(1)
 		} else {
 			r.makeUpdateReqData(req, rule, rows[i], rows[i+1], binlog)
+			r.st.UpdateNum.Add(1)
 		}
 
 		reqs = append(reqs, req)

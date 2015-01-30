@@ -10,6 +10,9 @@ es_addr = "127.0.0.1:9200"
 # Path to store data, like master.info, and dump MySQL data 
 data_dir = "./var"
 
+# Inner Http status address
+stat_addr = "127.0.0.1:12800"
+
 # pseudo server id like a slave 
 server_id = 1001
 
