@@ -101,6 +101,7 @@ func (d *Dumper) Dump(w io.Writer) error {
 	// Disable uncessary data
 	args = append(args, "--compact")
 	args = append(args, "--skip-opt")
+	args = append(args, "--quick")
 
 	// We only care about data
 	args = append(args, "--no-create-info")
