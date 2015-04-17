@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/siddontang/go-mysql-elasticsearch",
-	"GoVersion": "go1.4",
+	"GoVersion": "go1.3.3",
 	"Packages": [
 		"./..."
 	],
@@ -14,7 +14,15 @@
 			"Rev": "a07c134f8289edd9ac6ee6f0aa5f3d345f4aaf27"
 		},
 		{
+			"ImportPath": "github.com/siddontang/go-mysql/canal",
+			"Rev": "91b8786001d56074ed6a770188c60fb76f6ccaec"
+		},
+		{
 			"ImportPath": "github.com/siddontang/go-mysql/client",
+			"Rev": "91b8786001d56074ed6a770188c60fb76f6ccaec"
+		},
+		{
+			"ImportPath": "github.com/siddontang/go-mysql/dump",
 			"Rev": "91b8786001d56074ed6a770188c60fb76f6ccaec"
 		},
 		{
@@ -35,6 +43,10 @@
 		},
 		{
 			"ImportPath": "github.com/siddontang/go/hack",
+			"Rev": "530a23162549a31baa14dfa3b647a9eccee8878f"
+		},
+		{
+			"ImportPath": "github.com/siddontang/go/ioutil2",
 			"Rev": "530a23162549a31baa14dfa3b647a9eccee8878f"
 		},
 		{
