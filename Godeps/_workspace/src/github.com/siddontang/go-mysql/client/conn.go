@@ -2,11 +2,12 @@ package client
 
 import (
 	"fmt"
-	. "github.com/siddontang/go-mysql/mysql"
-	"github.com/siddontang/go-mysql/packet"
 	"net"
 	"strings"
 	"time"
+
+	. "github.com/siddontang/go-mysql/mysql"
+	"github.com/siddontang/go-mysql/packet"
 )
 
 type Conn struct {
@@ -83,8 +84,8 @@ func (c *Conn) handshake() error {
 	return nil
 }
 
-func (c *Conn) Close() {
-	c.Conn.Close()
+func (c *Conn) Close() error {
+	return c.Conn.Close()
 }
 
 func (c *Conn) Ping() error {

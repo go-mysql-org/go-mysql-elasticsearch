@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -31,35 +32,45 @@ const TimeFormat = "2006/01/02 15:04:05"
 
 const maxBufPoolSize = 16
 
-type Logger struct {
-	sync.Mutex
+type atomicInt32 int32
 
-	level int
+func (i *atomicInt32) Set(n int) {
+	atomic.StoreInt32((*int32)(i), int32(n))
+}
+
+func (i *atomicInt32) Get() int {
+	return int(atomic.LoadInt32((*int32)(i)))
+}
+
+type Logger struct {
+	level atomicInt32
 	flag  int
 
+	hMutex  sync.Mutex
 	handler Handler
 
 	quit chan struct{}
 	msg  chan []byte
 
-	bufs [][]byte
+	bufMutex sync.Mutex
+	bufs     [][]byte
 
 	wg sync.WaitGroup
 
-	closed bool
+	closed atomicInt32
 }
 
 //new a logger with specified handler and flag
 func New(handler Handler, flag int) *Logger {
 	var l = new(Logger)
 
-	l.level = LevelInfo
+	l.level.Set(LevelInfo)
 	l.handler = handler
 
 	l.flag = flag
 
 	l.quit = make(chan struct{})
-	l.closed = false
+	l.closed.Set(0)
 
 	l.msg = make(chan []byte, 1024)
 
@@ -88,7 +99,9 @@ func (l *Logger) run() {
 	for {
 		select {
 		case msg := <-l.msg:
+			l.hMutex.Lock()
 			l.handler.Write(msg)
+			l.hMutex.Unlock()
 			l.putBuf(msg)
 		case <-l.quit:
 			//we must log all msg
@@ -100,7 +113,7 @@ func (l *Logger) run() {
 }
 
 func (l *Logger) popBuf() []byte {
-	l.Lock()
+	l.bufMutex.Lock()
 	var buf []byte
 	if len(l.bufs) == 0 {
 		buf = make([]byte, 0, 1024)
@@ -108,25 +121,25 @@ func (l *Logger) popBuf() []byte {
 		buf = l.bufs[len(l.bufs)-1]
 		l.bufs = l.bufs[0 : len(l.bufs)-1]
 	}
-	l.Unlock()
+	l.bufMutex.Unlock()
 
 	return buf
 }
 
 func (l *Logger) putBuf(buf []byte) {
-	l.Lock()
+	l.bufMutex.Lock()
 	if len(l.bufs) < maxBufPoolSize {
 		buf = buf[0:0]
 		l.bufs = append(l.bufs, buf)
 	}
-	l.Unlock()
+	l.bufMutex.Unlock()
 }
 
 func (l *Logger) Close() {
-	if l.closed {
+	if l.closed.Get() == 1 {
 		return
 	}
-	l.closed = true
+	l.closed.Set(1)
 
 	close(l.quit)
 
@@ -139,16 +152,30 @@ func (l *Logger) Close() {
 
 //set log level, any log level less than it will not log
 func (l *Logger) SetLevel(level int) {
-	l.level = level
+	l.level.Set(level)
 }
 
-func (l *Logger) Output(callDepth int, level int, s string) {
-	if l.closed {
-		//closed
+func (l *Logger) SetHandler(h Handler) {
+	if l.closed.Get() == 1 {
 		return
 	}
 
-	if l.level > level {
+	l.hMutex.Lock()
+	if l.handler != nil {
+		l.handler.Close()
+	}
+	l.handler = h
+	l.hMutex.Unlock()
+}
+
+func (l *Logger) Output(callDepth int, level int, s string) {
+	if l.closed.Get() == 1 {
+		// closed
+		return
+	}
+
+	if l.level.Get() > level {
+		// higher level can be logged
 		return
 	}
 
@@ -259,6 +286,10 @@ func (l *Logger) Fatalf(format string, v ...interface{}) {
 
 func SetLevel(level int) {
 	std.SetLevel(level)
+}
+
+func SetHandler(h Handler) {
+	std.SetHandler(h)
 }
 
 func Trace(v ...interface{}) {

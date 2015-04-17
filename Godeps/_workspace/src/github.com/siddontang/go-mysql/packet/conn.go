@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	. "github.com/siddontang/go-mysql/mysql"
 	"io"
 	"net"
+
+	. "github.com/siddontang/go-mysql/mysql"
 )
 
 /*
@@ -153,9 +154,10 @@ func (c *Conn) ResetSequence() {
 	c.Sequence = 0
 }
 
-func (c *Conn) Close() {
+func (c *Conn) Close() error {
 	c.Sequence = 0
 	if c.Conn != nil {
-		c.Conn.Close()
+		return c.Conn.Close()
 	}
+	return nil
 }

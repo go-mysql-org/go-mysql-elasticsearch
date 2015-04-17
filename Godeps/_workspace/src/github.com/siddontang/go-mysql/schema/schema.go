@@ -6,8 +6,9 @@ package schema
 
 import (
 	"fmt"
-	"github.com/siddontang/go-mysql/client"
 	"strings"
+
+	"github.com/siddontang/go-mysql/mysql"
 )
 
 const (
@@ -39,6 +40,10 @@ type Table struct {
 	Columns   []TableColumn
 	Indexes   []*Index
 	PKColumns []int
+}
+
+func (ta *Table) String() string {
+	return fmt.Sprintf("%s.%s", ta.Schema, ta.Name)
 }
 
 func (ta *Table) AddColumn(name string, columnType string, extra string) {
@@ -116,7 +121,7 @@ func (idx *Index) FindColumn(name string) int {
 	return -1
 }
 
-func NewTable(conn *client.Conn, schema string, name string) (*Table, error) {
+func NewTable(conn mysql.Executer, schema string, name string) (*Table, error) {
 	ta := &Table{
 		Schema:  schema,
 		Name:    name,
@@ -135,7 +140,7 @@ func NewTable(conn *client.Conn, schema string, name string) (*Table, error) {
 	return ta, nil
 }
 
-func (ta *Table) fetchColumns(conn *client.Conn) error {
+func (ta *Table) fetchColumns(conn mysql.Executer) error {
 	r, err := conn.Execute(fmt.Sprintf("describe %s.%s", ta.Schema, ta.Name))
 	if err != nil {
 		return err
@@ -152,7 +157,7 @@ func (ta *Table) fetchColumns(conn *client.Conn) error {
 	return nil
 }
 
-func (ta *Table) fetchIndexes(conn *client.Conn) error {
+func (ta *Table) fetchIndexes(conn mysql.Executer) error {
 	r, err := conn.Execute(fmt.Sprintf("show index from %s.%s", ta.Schema, ta.Name))
 	if err != nil {
 		return err

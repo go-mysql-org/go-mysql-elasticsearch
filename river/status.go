@@ -22,7 +22,7 @@ type stat struct {
 func (s *stat) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 
-	rr, err := s.r.executeSql("SHOW MASTER STATUS")
+	rr, err := s.r.canal.Execute("SHOW MASTER STATUS")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(fmt.Sprintf("execute sql error %v", err)))
@@ -32,7 +32,7 @@ func (s *stat) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	binName, _ := rr.GetString(0, 0)
 	binPos, _ := rr.GetUint(0, 1)
 
-	pos := s.r.m.Pos()
+	pos := s.r.canal.SyncedPosition()
 
 	buf.WriteString(fmt.Sprintf("server_current_binlog:(%s, %d)\n", binName, binPos))
 	buf.WriteString(fmt.Sprintf("read_binlog:%s\n", pos))
@@ -40,8 +40,6 @@ func (s *stat) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	buf.WriteString(fmt.Sprintf("insert_num:%d\n", s.InsertNum.Get()))
 	buf.WriteString(fmt.Sprintf("update_num:%d\n", s.UpdateNum.Get()))
 	buf.WriteString(fmt.Sprintf("delete_num:%d\n", s.DeleteNum.Get()))
-
-	buf.WriteString(fmt.Sprintf("pending_jobs:%d\n", len(s.r.ev)))
 
 	w.Write(buf.Bytes())
 }

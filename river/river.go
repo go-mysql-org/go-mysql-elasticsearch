@@ -2,20 +2,13 @@ package river
 
 import (
 	"fmt"
-	"github.com/siddontang/go-mysql-elasticsearch/dump"
-	"github.com/siddontang/go-mysql-elasticsearch/elastic"
-	"github.com/siddontang/go-mysql/client"
-	"github.com/siddontang/go-mysql/mysql"
-	"github.com/siddontang/go-mysql/replication"
-	"github.com/siddontang/go/log"
-	"github.com/siddontang/go/sync2"
-	"os"
-	"os/exec"
-	"path"
 	"regexp"
-	"strconv"
-	"strings"
 	"sync"
+
+	"github.com/siddontang/go-mysql/canal"
+
+	"github.com/siddontang/go-mysql-elasticsearch/elastic"
+	"github.com/siddontang/go/log"
 )
 
 // In Elasticsearch, river is a pluggable service within Elasticsearch pulling data then indexing it into Elasticsearch.
@@ -24,30 +17,14 @@ import (
 type River struct {
 	c *Config
 
-	m *MasterInfo
+	canal *canal.Canal
 
 	rules map[string]*Rule
 
 	quit chan struct{}
 	wg   sync.WaitGroup
 
-	dumper *dump.Dumper
-	syncer *replication.BinlogSyncer
-	es     *elastic.Client
-
-	parser *parseHandler
-
-	ev chan interface{}
-
-	bulkSize sync2.AtomicInt64
-
-	// for MySQL binlog row image
-	rowImage string
-
-	dumpDoneCh chan struct{}
-
-	connLock sync.Mutex
-	conn     *client.Conn
+	es *elastic.Client
 
 	st *stat
 }
@@ -61,57 +38,74 @@ func NewRiver(c *Config) (*River, error) {
 
 	r.rules = make(map[string]*Rule)
 
-	r.dumpDoneCh = make(chan struct{})
-
-	r.parser = &parseHandler{r: r}
-
-	r.ev = make(chan interface{}, 2048)
-
-	os.MkdirAll(c.DataDir, 0755)
-
 	var err error
-
-	r.conn, err = client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, "")
-	if err != nil {
+	if err = r.newCanal(); err != nil {
 		return nil, err
 	}
 
-	if err = r.checkBinlogFormat(r.conn); err != nil {
+	if err = r.prepareRule(); err != nil {
 		return nil, err
 	}
 
-	if err = r.prepareRule(r.conn); err != nil {
+	if err = r.prepareCanal(); err != nil {
 		return nil, err
 	}
 
-	if r.m, err = loadMasterInfo(r.masterInfoPath()); err != nil {
+	// We must use binlog full row image
+	if err = r.canal.CheckBinlogRowImage("FULL"); err != nil {
 		return nil, err
-	} else if len(r.m.Addr) != 0 && r.m.Addr != r.c.MyAddr {
-		log.Infof("MySQL addr %s in old master.info, but new %s, reset", r.m.Addr, r.c.MyAddr)
-		// may use another MySQL, reset
-		r.m = &MasterInfo{}
-	}
-
-	r.m.Addr = r.c.MyAddr
-
-	if r.dumper, err = dump.NewDumper(r.c.DumpExec, r.c.MyAddr, r.c.MyUser, r.c.MyPassword); err != nil {
-		if err != exec.ErrNotFound {
-			return nil, err
-		}
-		//no mysqldump, use binlog only
-		r.dumper = nil
 	}
 
 	r.es = elastic.NewClient(r.c.ESAddr)
-
-	if err = r.prepareSyncer(); err != nil {
-		return nil, err
-	}
 
 	r.st = &stat{r: r}
 	go r.st.Run(r.c.StatAddr)
 
 	return r, nil
+}
+
+func (r *River) newCanal() error {
+	cfg := canal.NewDefaultConfig()
+	cfg.Addr = r.c.MyAddr
+	cfg.User = r.c.MyUser
+	cfg.Password = r.c.MyPassword
+	cfg.Flavor = r.c.Flavor
+	cfg.DataDir = r.c.DataDir
+
+	cfg.ServerID = r.c.ServerID
+	cfg.Dump.ExecutionPath = r.c.DumpExec
+
+	var err error
+	r.canal, err = canal.NewCanal(cfg)
+	return err
+}
+
+func (r *River) prepareCanal() error {
+	var db string
+	dbs := map[string]struct{}{}
+	tables := make([]string, 0, len(r.rules))
+	for _, rule := range r.rules {
+		db = rule.Schema
+		dbs[rule.Schema] = struct{}{}
+		tables = append(tables, rule.Table)
+	}
+
+	if len(dbs) == 1 {
+		// one db, we can shrink using table
+		r.canal.AddDumpTables(db, tables...)
+	} else {
+		// many dbs, can only assign databases to dump
+		keys := make([]string, 0, len(dbs))
+		for key, _ := range dbs {
+			keys = append(keys, key)
+		}
+
+		r.canal.AddDumpDatabases(keys...)
+	}
+
+	r.canal.RegRowsEventHandler(&rowsEventHandler{r})
+
+	return nil
 }
 
 func (r *River) newRule(schema, table string) error {
@@ -125,7 +119,7 @@ func (r *River) newRule(schema, table string) error {
 	return nil
 }
 
-func (r *River) parseSource(c *client.Conn) (map[string][]string, error) {
+func (r *River) parseSource() (map[string][]string, error) {
 	wildTables := make(map[string][]string, len(r.c.Sources))
 
 	// first, check sources
@@ -145,7 +139,7 @@ func (r *River) parseSource(c *client.Conn) (map[string][]string, error) {
 				sql := fmt.Sprintf(`SELECT table_name FROM information_schema.tables WHERE 
                     table_name RLIKE "%s" AND table_schema = "%s";`, table, s.Schema)
 
-				res, err := c.Execute(sql)
+				res, err := r.canal.Execute(sql)
 				if err != nil {
 					return nil, err
 				}
@@ -177,8 +171,8 @@ func (r *River) parseSource(c *client.Conn) (map[string][]string, error) {
 	return wildTables, nil
 }
 
-func (r *River) prepareRule(c *client.Conn) error {
-	wildtables, err := r.parseSource(c)
+func (r *River) prepareRule() error {
+	wildtables, err := r.parseSource()
 	if err != nil {
 		return err
 	}
@@ -221,7 +215,7 @@ func (r *River) prepareRule(c *client.Conn) error {
 	}
 
 	for _, rule := range r.rules {
-		if err := rule.fetchTableInfo(c); err != nil {
+		if rule.TableInfo, err = r.canal.GetTable(rule.Schema, rule.Table); err != nil {
 			return err
 		}
 
@@ -235,74 +229,13 @@ func (r *River) prepareRule(c *client.Conn) error {
 	return nil
 }
 
-func (r *River) checkBinlogFormat(c *client.Conn) error {
-	res, err := c.Execute(`SHOW GLOBAL VARIABLES LIKE "binlog_format";`)
-	if err != nil {
-		return err
-	} else if f, _ := res.GetString(0, 1); f != "ROW" {
-		return fmt.Errorf("binlog must ROW format, but %s now", f)
-	}
-
-	// default binlog row image, mariadb use full too
-	r.rowImage = replication.BINLOG_ROW_IMAGE_FULL
-	// need to check MySQL binlog row image? full, minimal or noblob?
-	if r.c.Flavor == mysql.MySQLFlavor {
-		if res, err = c.Execute(`SHOW GLOBAL VARIABLES LIKE "binlog_row_image"`); err != nil {
-			return err
-		}
-
-		r.rowImage, _ = res.GetString(0, 1)
-		log.Infof("MySQL use binlog row %s image", r.rowImage)
-	}
-
-	return nil
-}
-
-func (r *River) prepareSyncer() error {
-	r.syncer = replication.NewBinlogSyncer(r.c.ServerID, r.c.Flavor)
-
-	seps := strings.Split(r.c.MyAddr, ":")
-	if len(seps) != 2 {
-		return fmt.Errorf("invalid mysql addr format %s, must host:port", r.c.MyAddr)
-	}
-
-	port, err := strconv.ParseUint(seps[1], 10, 16)
-	if err != nil {
-		return err
-	}
-
-	if err = r.syncer.RegisterSlave(seps[0], uint16(port), r.c.MyUser, r.c.MyPassword); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *River) masterInfoPath() string {
-	return path.Join(r.c.DataDir, "master.info")
-}
-
 func ruleKey(schema string, table string) string {
 	return fmt.Sprintf("%s:%s", schema, table)
 }
 
 func (r *River) Run() error {
-	r.wg.Add(2)
-	go r.syncLoop()
-
-	defer r.wg.Done()
-
-	// first check needing dump?
-	if err := r.tryDump(); err != nil {
-		log.Fatalf("dump mysql error %v", err)
-		return err
-	}
-
-	close(r.dumpDoneCh)
-
-	if err := r.syncBinlog(); err != nil {
-		if !r.closed() || err != mysql.ErrBadConn {
-			log.Fatalf("sync binlog error %v", err)
-		}
+	if err := r.canal.Start(); err != nil {
+		log.Errorf("start canal err %v", err)
 		return err
 	}
 
@@ -313,48 +246,7 @@ func (r *River) Close() {
 	log.Infof("closing river")
 	close(r.quit)
 
-	r.connLock.Lock()
-	r.conn.Close()
-	r.connLock.Unlock()
-
-	r.syncer.Close()
+	r.canal.Close()
 
 	r.wg.Wait()
-
-	r.m.Close()
-}
-
-func (r *River) closed() bool {
-	select {
-	case <-r.quit:
-		return true
-	default:
-		return false
-	}
-}
-
-func (r *River) executeSql(cmd string, args ...interface{}) (rr *mysql.Result, err error) {
-	r.connLock.Lock()
-	defer r.connLock.Unlock()
-
-	retryNum := 3
-	for i := 0; i < retryNum; i++ {
-		if r.conn == nil {
-			r.conn, err = client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, "")
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		rr, err = r.conn.Execute(cmd, args...)
-		if err != nil && err != mysql.ErrBadConn {
-			return
-		} else if err == mysql.ErrBadConn {
-			r.conn = nil
-			continue
-		} else {
-			return
-		}
-	}
-	return
 }

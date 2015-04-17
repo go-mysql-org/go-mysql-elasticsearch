@@ -8,6 +8,8 @@ const (
 var (
 	//binlog header [ fe `bin` ]
 	BinLogFileHeader []byte = []byte{0xfe, 0x62, 0x69, 0x6e}
+
+	SemiSyncIndicator byte = 0xef
 )
 
 const (
@@ -159,8 +161,25 @@ func (e EventType) String() string {
 		return "AnonymousGTIDEvent"
 	case PREVIOUS_GTIDS_EVENT:
 		return "PreviousGTIDsEvent"
+	case MARIADB_ANNOTATE_ROWS_EVENT:
+		return "MariadbAnnotateRowsEvent"
+	case MARIADB_BINLOG_CHECKPOINT_EVENT:
+		return "MariadbBinLogCheckPointEvent"
+	case MARIADB_GTID_EVENT:
+		return "MariadbGTIDEvent"
+	case MARIADB_GTID_LIST_EVENT:
+		return "MariadbGTIDListEvent"
 
 	default:
 		return "UnknownEvent"
 	}
 }
+
+const (
+	BINLOG_CHECKSUM_ALG_OFF byte = 0 // Events are without checksum though its generator
+	// is checksum-capable New Master (NM).
+	BINLOG_CHECKSUM_ALG_CRC32 byte = 1 // CRC32 of zlib algorithm.
+	//  BINLOG_CHECKSUM_ALG_ENUM_END,  // the cut line: valid alg range is [1, 0x7f].
+	BINLOG_CHECKSUM_ALG_UNDEF byte = 255 // special value to tag undetermined yet checksum
+	// or events from checksum-unaware servers
+)
