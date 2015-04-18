@@ -3,13 +3,14 @@ package replication
 import (
 	"flag"
 	"fmt"
-	"github.com/siddontang/go-mysql/client"
-	"github.com/siddontang/go-mysql/mysql"
-	. "gopkg.in/check.v1"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/siddontang/go-mysql/client"
+	"github.com/siddontang/go-mysql/mysql"
+	. "gopkg.in/check.v1"
 )
 
 // Use docker mysql to test, mysql is 3306, mariadb is 3316
@@ -45,10 +46,12 @@ func (t *testSyncerSuite) SetUpTest(c *C) {
 func (t *testSyncerSuite) TearDownTest(c *C) {
 	if t.b != nil {
 		t.b.Close()
+		t.b = nil
 	}
 
 	if t.c != nil {
 		t.c.Close()
+		t.c = nil
 	}
 }
 
@@ -62,8 +65,12 @@ func (t *testSyncerSuite) testSync(c *C, s *BinlogStreamer) {
 	go func() {
 		defer t.wg.Done()
 
+		if s == nil {
+			return
+		}
+
 		for {
-			e, err := s.GetEventTimeout(1 * time.Second)
+			e, err := s.GetEventTimeout(2 * time.Second)
 			if err != nil {
 				if err != ErrGetEventTimeout {
 					c.Fatal(err)
@@ -89,7 +96,7 @@ func (t *testSyncerSuite) testSync(c *C, s *BinlogStreamer) {
 	         str VARCHAR(256),
 	         f FLOAT,
 	         d DOUBLE,
-	         de DECIMAL(5,2),
+	         de DECIMAL(10,2),
 	         i INT,
 	         bi BIGINT,
 	         e enum ("e1", "e2"),
@@ -110,33 +117,18 @@ func (t *testSyncerSuite) testSync(c *C, s *BinlogStreamer) {
 	//use row format
 	t.testExecute(c, "SET SESSION binlog_format = 'ROW'")
 
-	t.testExecute(c, `INSERT INTO test_replication (str, f, i) VALUES ("3", 3.14, 10)`)
-	t.testExecute(c, `INSERT INTO test_replication (e) VALUES ("e1")`)
-	t.testExecute(c, `INSERT INTO test_replication (b) VALUES (0b0011)`)
-	t.testExecute(c, `INSERT INTO test_replication (y) VALUES (1985)`)
-	t.testExecute(c, `INSERT INTO test_replication (da) VALUES ("2012-05-07")`)
-	t.testExecute(c, `INSERT INTO test_replication (ts) VALUES ("2012-05-07 14:01:01")`)
-	t.testExecute(c, `INSERT INTO test_replication (dt) VALUES ("2012-05-07 14:01:01")`)
-	t.testExecute(c, `INSERT INTO test_replication (tm) VALUES ("14:01:01")`)
-	t.testExecute(c, `INSERT INTO test_replication (de) VALUES (122.24)`)
-	t.testExecute(c, `INSERT INTO test_replication (t) VALUES ("abc")`)
-	t.testExecute(c, `INSERT INTO test_replication (bb) VALUES ("12345")`)
-	t.testExecute(c, `INSERT INTO test_replication (se) VALUES ("a,b")`)
+	t.testExecute(c, `INSERT INTO test_replication (str, f, i, e, b, y, da, ts, dt, tm, de, t, bb, se)
+		VALUES ("3", -3.14, 10, "e1", 0b0011, 1985,
+		"2012-05-07", "2012-05-07 14:01:01", "2012-05-07 14:01:01",
+		"14:01:01", -45363.64, "abc", "12345", "a,b")`)
 
 	id := 100
 
 	if t.flavor == mysql.MySQLFlavor {
-		for _, image := range []string{BINLOG_ROW_IMAGE_FULL, BINLOG_ROW_IAMGE_MINIMAL, BINLOG_ROW_IMAGE_NOBLOB} {
-			t.testExecute(c, fmt.Sprintf("SET SESSION binlog_row_image = '%s'", image))
+		t.testExecute(c, "SET SESSION binlog_row_image = 'MINIMAL'")
 
-			t.testExecute(c, fmt.Sprintf(`INSERT INTO test_replication (id, str, f, i, bb) VALUES (%d, "4", 3.14, 100, "abc")`, id))
-			t.testExecute(c, fmt.Sprintf(`UPDATE test_replication SET f = 2.14 WHERE id = %d`, id))
-			t.testExecute(c, fmt.Sprintf(`DELETE FROM test_replication WHERE id = %d`, id))
-			id++
-		}
-	} else {
-		t.testExecute(c, fmt.Sprintf(`INSERT INTO test_replication (id, str, f, i, bb) VALUES (%d, "4", 3.14, 100, "abc")`, id))
-		t.testExecute(c, fmt.Sprintf(`UPDATE test_replication SET f = 2.14 WHERE id = %d`, id))
+		t.testExecute(c, fmt.Sprintf(`INSERT INTO test_replication (id, str, f, i, bb, de) VALUES (%d, "4", -3.14, 100, "abc", -45635.64)`, id))
+		t.testExecute(c, fmt.Sprintf(`UPDATE test_replication SET f = -12.14, de = 555.34 WHERE id = %d`, id))
 		t.testExecute(c, fmt.Sprintf(`DELETE FROM test_replication WHERE id = %d`, id))
 	}
 
@@ -160,11 +152,15 @@ func (t *testSyncerSuite) setupTest(c *C, flavor string) {
 	t.c, err = client.Connect(fmt.Sprintf("%s:%d", *testHost, port), "root", "", "")
 	c.Assert(err, IsNil)
 
-	_, err = t.c.Execute("CREATE DATABASE IF NOT EXISTS test")
-	c.Assert(err, IsNil)
+	// _, err = t.c.Execute("CREATE DATABASE IF NOT EXISTS test")
+	// c.Assert(err, IsNil)
 
 	_, err = t.c.Execute("USE test")
 	c.Assert(err, IsNil)
+
+	if t.b != nil {
+		t.b.Close()
+	}
 
 	t.b = NewBinlogSyncer(100, flavor)
 
@@ -172,22 +168,22 @@ func (t *testSyncerSuite) setupTest(c *C, flavor string) {
 	c.Assert(err, IsNil)
 }
 
-func (t *testSyncerSuite) testPostionSync(c *C, flavor string) {
-	t.setupTest(c, flavor)
-
+func (t *testSyncerSuite) testPositionSync(c *C) {
 	//get current master binlog file and position
 	r, err := t.c.Execute("SHOW MASTER STATUS")
 	c.Assert(err, IsNil)
 	binFile, _ := r.GetString(0, 0)
+	binPos, _ := r.GetInt(0, 1)
 
-	s, err := t.b.StartSync(mysql.Position{binFile, uint32(4)})
+	s, err := t.b.StartSync(mysql.Position{binFile, uint32(binPos)})
 	c.Assert(err, IsNil)
 
 	t.testSync(c, s)
 }
 
-func (t *testSyncerSuite) TestMysqlPostionSync(c *C) {
-	t.testPostionSync(c, mysql.MySQLFlavor)
+func (t *testSyncerSuite) TestMysqlPositionSync(c *C) {
+	t.setupTest(c, mysql.MySQLFlavor)
+	t.testPositionSync(c)
 }
 
 func (t *testSyncerSuite) TestMysqlGTIDSync(c *C) {
@@ -212,9 +208,72 @@ func (t *testSyncerSuite) TestMysqlGTIDSync(c *C) {
 }
 
 func (t *testSyncerSuite) TestMariadbPositionSync(c *C) {
-	t.testPostionSync(c, mysql.MariaDBFlavor)
+	t.setupTest(c, mysql.MariaDBFlavor)
+
+	t.testPositionSync(c)
 }
 
 func (t *testSyncerSuite) TestMariadbGTIDSync(c *C) {
+	t.setupTest(c, mysql.MariaDBFlavor)
 
+	// get current master gtid binlog pos
+	r, err := t.c.Execute("SELECT @@gtid_binlog_pos")
+	c.Assert(err, IsNil)
+
+	str, _ := r.GetString(0, 0)
+	set, _ := mysql.ParseMariadbGTIDSet(str)
+
+	s, err := t.b.StartSyncGTID(set)
+	c.Assert(err, IsNil)
+
+	t.testSync(c, s)
+}
+
+func (t *testSyncerSuite) TestMysqlSemiPositionSync(c *C) {
+	t.setupTest(c, mysql.MySQLFlavor)
+
+	err := t.b.EnableSemiSync()
+	if err != nil {
+		c.Skip(fmt.Sprintf("mysql doest not support semi synchronous replication %v", err))
+	}
+
+	t.testPositionSync(c)
+}
+
+func (t *testSyncerSuite) TestMysqlBinlogCodec(c *C) {
+	t.setupTest(c, mysql.MySQLFlavor)
+
+	t.testExecute(c, "RESET MASTER")
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		t.testSync(c, nil)
+
+		t.testExecute(c, "FLUSH LOGS")
+
+		t.testSync(c, nil)
+	}()
+
+	err := t.b.StartBackup("./var", mysql.Position{"", uint32(0)}, 2*time.Second)
+	c.Check(err, Equals, ErrGetEventTimeout)
+
+	p := NewBinlogParser()
+
+	f := func(e *BinlogEvent) error {
+		if *testOutputLogs {
+			e.Dump(os.Stdout)
+			os.Stdout.Sync()
+		}
+		return nil
+	}
+
+	err = p.ParseFile("./var/mysql.000001", 0, f)
+	c.Assert(err, IsNil)
+
+	err = p.ParseFile("./var/mysql.000002", 0, f)
+	c.Assert(err, IsNil)
 }

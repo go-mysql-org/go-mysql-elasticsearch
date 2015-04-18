@@ -3,12 +3,12 @@ package river
 import (
 	"flag"
 	"fmt"
-	"github.com/siddontang/go-mysql-elasticsearch/elastic"
-	"github.com/siddontang/go-mysql/client"
-	"github.com/siddontang/go-mysql/mysql"
-	. "gopkg.in/check.v1"
 	"os"
 	"testing"
+
+	"github.com/siddontang/go-mysql-elasticsearch/elastic"
+	"github.com/siddontang/go-mysql/client"
+	. "gopkg.in/check.v1"
 )
 
 var my_addr = flag.String("my_addr", "127.0.0.1:3306", "MySQL addr")
@@ -167,13 +167,8 @@ func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
 }
 
 func (s *riverTestSuite) testWaitSyncDone(c *C) {
-	r, err := s.c.Execute("SHOW MASTER STATUS")
+	err := s.r.canal.CatchMasterPos(10)
 	c.Assert(err, IsNil)
-
-	name, _ := r.GetString(0, 0)
-	pos, _ := r.GetUint(0, 1)
-
-	s.r.waitPos(mysql.Position{name, uint32(pos)}, 10)
 }
 
 func (s *riverTestSuite) TestRiver(c *C) {
@@ -181,7 +176,7 @@ func (s *riverTestSuite) TestRiver(c *C) {
 
 	go s.r.Run()
 
-	<-s.r.dumpDoneCh
+	<-s.r.canal.WaitDumpDone()
 
 	var r *elastic.Response
 	r = s.testElasticGet(c, "1")

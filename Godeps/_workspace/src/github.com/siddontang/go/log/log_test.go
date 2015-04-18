@@ -16,7 +16,14 @@ func TestStdStreamLog(t *testing.T) {
 
 	Info("hello world")
 
+	SetHandler(os.Stderr)
+
 	Infof("%s %d", "Hello", 123)
+
+	SetLevel(LevelError)
+
+	Infof("%s %d", "Hello", 123)
+	Fatalf("%s %d", "Hello", 123)
 }
 
 func TestRotatingFileLog(t *testing.T) {

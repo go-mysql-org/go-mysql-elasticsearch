@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// Unlick mysqldump, Dumper is designed for parsing and syning data easily.
 type Dumper struct {
 	// mysqldump execution path, like mysqldump or /usr/bin/mysqldump, etc...
 	ExecutionPath string

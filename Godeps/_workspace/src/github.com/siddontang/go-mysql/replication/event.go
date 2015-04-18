@@ -4,10 +4,14 @@ import (
 	"encoding/binary"
 	//"encoding/hex"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
+	"time"
+	"unicode"
+
 	"github.com/satori/go.uuid"
 	. "github.com/siddontang/go-mysql/mysql"
-	"io"
-	"time"
 )
 
 const (
@@ -15,8 +19,9 @@ const (
 )
 
 type BinlogEvent struct {
-	//raw binlog package, don't include last 4 bytes CRC32 checkout
-	Data   []byte
+	// raw binlog data, including crc32 checksum if exists
+	RawData []byte
+
 	Header *EventHeader
 	Event  Event
 }
@@ -95,6 +100,43 @@ func (h *EventHeader) Dump(w io.Writer) {
 	fmt.Fprintf(w, "Event size: %d\n", h.EventSize)
 }
 
+var (
+	checksumVersionSplitMysql   []int = []int{5, 6, 1}
+	checksumVersionProductMysql int   = (checksumVersionSplitMysql[0]*256+checksumVersionSplitMysql[1])*256 + checksumVersionSplitMysql[2]
+
+	checksumVersionSplitMariaDB   []int = []int{5, 3, 0}
+	checksumVersionProductMariaDB int   = (checksumVersionSplitMariaDB[0]*256+checksumVersionSplitMariaDB[1])*256 + checksumVersionSplitMariaDB[2]
+)
+
+// server version format X.Y.Zabc, a is not . or number
+func splitServerVersion(server string) []int {
+	seps := strings.Split(server, ".")
+	if len(seps) < 3 {
+		return []int{0, 0, 0}
+	}
+
+	x, _ := strconv.Atoi(seps[0])
+	y, _ := strconv.Atoi(seps[1])
+
+	index := 0
+	for i, c := range seps[2] {
+		if !unicode.IsNumber(c) {
+			index = i
+			break
+		}
+	}
+
+	z, _ := strconv.Atoi(seps[2][0:index])
+
+	return []int{x, y, z}
+}
+
+func calcVersionProduct(server string) int {
+	versionSplit := splitServerVersion(server)
+
+	return ((versionSplit[0]*256+versionSplit[1])*256 + versionSplit[2])
+}
+
 type FormatDescriptionEvent struct {
 	Version uint16
 	//len = 50
@@ -102,6 +144,9 @@ type FormatDescriptionEvent struct {
 	CreateTimestamp        uint32
 	EventHeaderLength      uint8
 	EventTypeHeaderLengths []byte
+
+	// 0 is off, 1 is for CRC32, 255 is undefined
+	ChecksumAlgorithm byte
 }
 
 func (e *FormatDescriptionEvent) Decode(data []byte) error {
@@ -123,7 +168,20 @@ func (e *FormatDescriptionEvent) Decode(data []byte) error {
 		return fmt.Errorf("invalid event header length %d, must 19", e.EventHeaderLength)
 	}
 
-	e.EventTypeHeaderLengths = data[pos:]
+	server := string(e.ServerVersion)
+	checksumProduct := checksumVersionProductMysql
+	if strings.Contains(strings.ToLower(server), "mariadb") {
+		checksumProduct = checksumVersionProductMariaDB
+	}
+
+	if calcVersionProduct(string(e.ServerVersion)) >= checksumProduct {
+		// here, the last 5 bytes is 1 byte check sum alg type and 4 byte checksum if exists
+		e.ChecksumAlgorithm = data[len(data)-5]
+		e.EventTypeHeaderLengths = data[pos : len(data)-5]
+	} else {
+		e.ChecksumAlgorithm = BINLOG_CHECKSUM_ALG_UNDEF
+		e.EventTypeHeaderLengths = data[pos:]
+	}
 
 	return nil
 }
@@ -131,7 +189,8 @@ func (e *FormatDescriptionEvent) Decode(data []byte) error {
 func (e *FormatDescriptionEvent) Dump(w io.Writer) {
 	fmt.Fprintf(w, "Version: %d\n", e.Version)
 	fmt.Fprintf(w, "Server version: %s\n", e.ServerVersion)
-	fmt.Fprintf(w, "Create date: %s\n", time.Unix(int64(e.CreateTimestamp), 0).Format(TimeFormat))
+	//fmt.Fprintf(w, "Create date: %s\n", time.Unix(int64(e.CreateTimestamp), 0).Format(TimeFormat))
+	fmt.Fprintf(w, "Checksum algorithm: %d\n", e.ChecksumAlgorithm)
 	//fmt.Fprintf(w, "Event header lengths: \n%s", hex.Dump(e.EventTypeHeaderLengths))
 	fmt.Fprintln(w)
 }
@@ -237,5 +296,83 @@ func (e *GTIDEvent) Dump(w io.Writer) {
 	fmt.Fprintf(w, "Commit flag: %d\n", e.CommitFlag)
 	u, _ := uuid.FromBytes(e.SID)
 	fmt.Fprintf(w, "GTID_NEXT: %s:%d\n", u.String(), e.GNO)
+	fmt.Fprintln(w)
+}
+
+// case MARIADB_ANNOTATE_ROWS_EVENT:
+// 	return "MariadbAnnotateRowsEvent"
+
+type MariadbAnnotaeRowsEvent struct {
+	Query []byte
+}
+
+func (e *MariadbAnnotaeRowsEvent) Decode(data []byte) error {
+	e.Query = data
+	return nil
+}
+
+func (e *MariadbAnnotaeRowsEvent) Dump(w io.Writer) {
+	fmt.Fprintf(w, "Query: %s\n", e.Query)
+	fmt.Fprintln(w)
+}
+
+type MariadbBinlogCheckPointEvent struct {
+	Info []byte
+}
+
+func (e *MariadbBinlogCheckPointEvent) Decode(data []byte) error {
+	e.Info = data
+	return nil
+}
+
+func (e *MariadbBinlogCheckPointEvent) Dump(w io.Writer) {
+	fmt.Fprintf(w, "Info: %s\n", e.Info)
+	fmt.Fprintln(w)
+}
+
+type MariadbGTIDEvent struct {
+	GTID MariadbGTID
+}
+
+func (e *MariadbGTIDEvent) Decode(data []byte) error {
+	e.GTID.SequenceNumber = binary.LittleEndian.Uint64(data)
+	e.GTID.DomainID = binary.LittleEndian.Uint32(data[8:])
+
+	// we don't care commit id now, maybe later
+
+	return nil
+}
+
+func (e *MariadbGTIDEvent) Dump(w io.Writer) {
+	fmt.Fprintf(w, "GTID: %s\n", e.GTID)
+	fmt.Fprintln(w)
+}
+
+type MariadbGTIDListEvent struct {
+	GTIDs []MariadbGTID
+}
+
+func (e *MariadbGTIDListEvent) Decode(data []byte) error {
+	pos := 0
+	v := binary.LittleEndian.Uint32(data[pos:])
+	pos += 4
+
+	count := v & uint32((1<<28)-1)
+
+	e.GTIDs = make([]MariadbGTID, count)
+
+	for i := uint32(0); i < count; i++ {
+		e.GTIDs[i].DomainID = binary.LittleEndian.Uint32(data[pos:])
+		pos += 4
+		e.GTIDs[i].ServerID = binary.LittleEndian.Uint32(data[pos:])
+		pos += 4
+		e.GTIDs[i].SequenceNumber = binary.LittleEndian.Uint64(data[pos:])
+	}
+
+	return nil
+}
+
+func (e *MariadbGTIDListEvent) Dump(w io.Writer) {
+	fmt.Fprintf(w, "Lists: %v\n", e.GTIDs)
 	fmt.Fprintln(w)
 }

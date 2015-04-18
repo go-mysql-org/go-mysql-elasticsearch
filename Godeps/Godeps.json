@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/siddontang/go-mysql-elasticsearch",
-	"GoVersion": "go1.4",
+	"GoVersion": "go1.3.3",
 	"Packages": [
 		"./..."
 	],
@@ -14,40 +14,52 @@
 			"Rev": "a07c134f8289edd9ac6ee6f0aa5f3d345f4aaf27"
 		},
 		{
+			"ImportPath": "github.com/siddontang/go-mysql/canal",
+			"Rev": "98e93aba6c5dc8ac11f1c5eacf72f216340e5f35"
+		},
+		{
 			"ImportPath": "github.com/siddontang/go-mysql/client",
-			"Rev": "d4076697470c82edea067dc9fc7ba225d9a5411f"
+			"Rev": "98e93aba6c5dc8ac11f1c5eacf72f216340e5f35"
+		},
+		{
+			"ImportPath": "github.com/siddontang/go-mysql/dump",
+			"Rev": "98e93aba6c5dc8ac11f1c5eacf72f216340e5f35"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/mysql",
-			"Rev": "d4076697470c82edea067dc9fc7ba225d9a5411f"
+			"Rev": "98e93aba6c5dc8ac11f1c5eacf72f216340e5f35"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/packet",
-			"Rev": "d4076697470c82edea067dc9fc7ba225d9a5411f"
+			"Rev": "98e93aba6c5dc8ac11f1c5eacf72f216340e5f35"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/replication",
-			"Rev": "d4076697470c82edea067dc9fc7ba225d9a5411f"
+			"Rev": "98e93aba6c5dc8ac11f1c5eacf72f216340e5f35"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/schema",
-			"Rev": "d4076697470c82edea067dc9fc7ba225d9a5411f"
+			"Rev": "98e93aba6c5dc8ac11f1c5eacf72f216340e5f35"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go/hack",
-			"Rev": "c2b33271306fcb7c6532efceac33ec45ee2439e0"
+			"Rev": "530a23162549a31baa14dfa3b647a9eccee8878f"
+		},
+		{
+			"ImportPath": "github.com/siddontang/go/ioutil2",
+			"Rev": "530a23162549a31baa14dfa3b647a9eccee8878f"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go/log",
-			"Rev": "c2b33271306fcb7c6532efceac33ec45ee2439e0"
+			"Rev": "530a23162549a31baa14dfa3b647a9eccee8878f"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go/sync2",
-			"Rev": "c2b33271306fcb7c6532efceac33ec45ee2439e0"
+			"Rev": "530a23162549a31baa14dfa3b647a9eccee8878f"
 		},
 		{
 			"ImportPath": "gopkg.in/check.v1",
-			"Rev": "5b76b26efe7f426789852e983fbde4de62c42282"
+			"Rev": "64131543e7896d5bcc6bd5a76287eb75ea96c673"
 		}
 	]
 }
