@@ -1,8 +1,9 @@
 package river
 
 import (
-	"github.com/BurntSushi/toml"
 	"io/ioutil"
+
+	"github.com/BurntSushi/toml"
 )
 
 type SourceConfig struct {

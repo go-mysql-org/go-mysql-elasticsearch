@@ -2,11 +2,12 @@ package main
 
 import (
 	"flag"
-	"github.com/siddontang/go-mysql-elasticsearch/river"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
+
+	"github.com/siddontang/go-mysql-elasticsearch/river"
 )
 
 var configFile = flag.String("config", "./etc/river.toml", "go-mysql-elasticsearch config file")

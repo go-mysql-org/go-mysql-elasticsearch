@@ -3,10 +3,11 @@ package river
 import (
 	"bytes"
 	"fmt"
-	"github.com/siddontang/go/log"
-	"github.com/siddontang/go/sync2"
 	"net"
 	"net/http"
+
+	"github.com/siddontang/go/log"
+	"github.com/siddontang/go/sync2"
 )
 
 type stat struct {

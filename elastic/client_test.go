@@ -3,8 +3,9 @@ package elastic
 import (
 	"flag"
 	"fmt"
-	. "gopkg.in/check.v1"
 	"testing"
+
+	. "gopkg.in/check.v1"
 )
 
 var host = flag.String("host", "127.0.0.1", "Elasticsearch host")
