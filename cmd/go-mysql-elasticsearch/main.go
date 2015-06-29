@@ -77,10 +77,8 @@ func main() {
 		return
 	}
 
-	go func() {
-		<-sc
-		r.Close()
-	}()
-
 	r.Run()
+
+	<-sc
+	r.Close()
 }
