@@ -82,7 +82,6 @@ func (d *Dumper) Reset() {
 	d.Databases = d.Databases[0:0]
 }
 
-// Dump MySQL into writer w
 func (d *Dumper) Dump(w io.Writer) error {
 	args := make([]string, 0, 16)
 

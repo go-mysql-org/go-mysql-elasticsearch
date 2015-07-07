@@ -145,12 +145,5 @@ func (s *schemaTestSuite) TestParseValue(c *C) {
 	str = `123,'\Z#÷QÎx£. Æ‘ÇoPâÅ_\r—\\','','qn\'`
 	values, err = parseValues(str)
 	c.Assert(err, NotNil)
-}
 
-func (s *schemaTestSuite) TestDumpAndParse(c *C) {
-	s.d.Reset()
-	s.d.AddDatabases("test1", "test2")
-
-	err := s.d.DumpAndParse(new(testParseHandler))
-	c.Assert(err, IsNil)
 }
