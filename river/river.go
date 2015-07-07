@@ -74,6 +74,7 @@ func (r *River) newCanal() error {
 
 	cfg.ServerID = r.c.ServerID
 	cfg.Dump.ExecutionPath = r.c.DumpExec
+	cfg.Dump.DiscardErr = false
 
 	var err error
 	r.canal, err = canal.NewCanal(cfg)
