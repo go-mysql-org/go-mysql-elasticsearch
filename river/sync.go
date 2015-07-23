@@ -110,9 +110,19 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 			return nil, err
 		}
 
+		beforeParentID, afterParentID := "", ""
+		if len(rule.Parent) > 0 {
+			if beforeParentID, err = r.getParentID(rule, rows[i], rule.Parent); err != nil {
+				return nil, err
+			}
+			if afterParentID, err = r.getParentID(rule, rows[i+1], rule.Parent); err != nil {
+				return nil, err
+			}
+		}
+
 		req := &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: beforeID}
 
-		if beforeID != afterID {
+		if beforeID != afterID || beforeParentID != afterParentID {
 			req.Action = elastic.ActionDelete
 			reqs = append(reqs, req)
 
@@ -182,6 +192,10 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 			req.Data[c.Name] = r.makeReqColumnData(&c, values[i])
 		}
 	}
+
+	if len(rule.Parent) > 0 {
+		req.Parent = fmt.Sprint(req.Data[rule.Parent])
+	}
 }
 
 func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
@@ -226,6 +240,15 @@ func (r *River) getDocID(rule *Rule, row []interface{}) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+func (r *River) getParentID(rule *Rule, row []interface{}, columnName string) (string, error) {
+	index := rule.TableInfo.FindColumn(columnName)
+	if index < 0 {
+		return "", fmt.Errorf("parent id not found %s(%s)", rule.TableInfo.Name, columnName)
+	}
+
+	return fmt.Sprint(row[index]), nil
 }
 
 func (r *River) doBulk(reqs []*elastic.BulkRequest) error {

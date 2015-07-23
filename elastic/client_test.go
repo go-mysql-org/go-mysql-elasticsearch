@@ -92,3 +92,36 @@ func (s *elasticTestSuite) TestSimple(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(resp.Errors, Equals, false)
 }
+
+// this requires a parent setting in _mapping
+func (s *elasticTestSuite) TestParent(c *C) {
+	index := "dummy"
+	docType := "comment"
+
+	items := make([]*BulkRequest, 10)
+
+	for i := 0; i < 10; i++ {
+		id := fmt.Sprintf("%d", i)
+		req := new(BulkRequest)
+		req.Action = ActionIndex
+		req.ID = id
+		req.Data = makeTestData(fmt.Sprintf("abc %d", i), fmt.Sprintf("hello world %d", i))
+		req.Parent = "1"
+		items[i] = req
+	}
+
+	resp, err := s.c.IndexTypeBulk(index, docType, items)
+	c.Assert(err, IsNil)
+	c.Assert(resp.Errors, Equals, false)
+
+	for i := 0; i < 10; i++ {
+		id := fmt.Sprintf("%d", i)
+		req := new(BulkRequest)
+		req.Action = ActionDelete
+		req.ID = id
+		items[i] = req
+	}
+	resp, err = s.c.IndexTypeBulk(index, docType, items)
+	c.Assert(err, IsNil)
+	c.Assert(resp.Errors, Equals, false)
+}

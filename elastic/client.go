@@ -53,6 +53,7 @@ type BulkRequest struct {
 	Index  string
 	Type   string
 	ID     string
+	Parent string
 
 	Data map[string]interface{}
 }
@@ -69,6 +70,9 @@ func (r *BulkRequest) bulk(buf *bytes.Buffer) error {
 
 	if len(r.ID) > 0 {
 		metaData["_id"] = r.ID
+	}
+	if len(r.Parent) > 0 {
+		metaData["_parent"] = r.Parent
 	}
 
 	meta[r.Action] = metaData
@@ -190,6 +194,32 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 	return ret, err
 }
 
+func (c *Client) CreateMapping(index string, docType string, mapping map[string]interface{}) error {
+	reqUrl := fmt.Sprintf("http://%s/%s", c.Addr,
+		url.QueryEscape(index))
+
+	r, err := c.Do("HEAD", reqUrl, nil)
+	if err != nil {
+		return err
+	}
+
+	// index doesn't exist, create index first
+	if r.Code != http.StatusOK {
+		_, err = c.Do("POST", reqUrl, nil)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	reqUrl = fmt.Sprintf("http://%s/%s/%s/_mapping", c.Addr,
+		url.QueryEscape(index),
+		url.QueryEscape(docType))
+
+	_, err = c.Do("POST", reqUrl, mapping)
+	return err
+}
+
 func (c *Client) DeleteIndex(index string) error {
 	reqUrl := fmt.Sprintf("http://%s/%s", c.Addr,
 		url.QueryEscape(index))
@@ -266,6 +296,7 @@ func (c *Client) Delete(index string, docType string, id string) error {
 	}
 }
 
+// only support parent in 'Bulk' related apis
 func (c *Client) Bulk(items []*BulkRequest) (*BulkResponse, error) {
 	reqUrl := fmt.Sprintf("http://%s/_bulk", c.Addr)
 

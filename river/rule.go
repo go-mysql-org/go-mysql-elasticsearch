@@ -12,6 +12,7 @@ type Rule struct {
 	Table  string `toml:"table"`
 	Index  string `toml:"index"`
 	Type   string `toml:"type"`
+	Parent string `toml:"parent"`
 
 	// Default, a MySQL table field name is mapped to Elasticsearch field name.
 	// Sometimes, you want to use different name, e.g, the MySQL file name is title,

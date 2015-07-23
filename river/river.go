@@ -137,7 +137,7 @@ func (r *River) parseSource() (map[string][]string, error) {
 
 				tables := []string{}
 
-				sql := fmt.Sprintf(`SELECT table_name FROM information_schema.tables WHERE 
+				sql := fmt.Sprintf(`SELECT table_name FROM information_schema.tables WHERE
                     table_name RLIKE "%s" AND table_schema = "%s";`, table, s.Schema)
 
 				res, err := r.canal.Execute(sql)
@@ -202,6 +202,7 @@ func (r *River) prepareRule() error {
 					rr := r.rules[ruleKey(rule.Schema, table)]
 					rr.Index = rule.Index
 					rr.Type = rule.Type
+					rr.Parent = rule.Parent
 					rr.FieldMapping = rule.FieldMapping
 				}
 			} else {
