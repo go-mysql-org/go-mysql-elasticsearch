@@ -3,6 +3,7 @@ package river
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
@@ -186,7 +187,7 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 	req.Action = elastic.ActionUpdate
 
 	for i, c := range rule.TableInfo.Columns {
-		if beforeValues[i] == afterValues[i] {
+		if reflect.DeepEqual(beforeValues[i], afterValues[i]) {
 			//nothing changed
 			continue
 		}
