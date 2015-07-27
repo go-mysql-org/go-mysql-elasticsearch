@@ -160,6 +160,11 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 			}
 			return strings.Join(sets, ",")
 		}
+	case schema.TYPE_STRING:
+		switch value := value.(type) {
+		case []byte:
+			return string(value[:])
+		}
 	}
 
 	return value
