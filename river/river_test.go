@@ -34,7 +34,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	schema := `
         CREATE TABLE IF NOT EXISTS %s (
-            id INT, 
+            id INT,
             title VARCHAR(256),
             content VARCHAR(256),
             tenum ENUM("e1", "e2", "e3"),
@@ -119,6 +119,8 @@ schema = "test"
 table = "test_river"
 index = "river"
 type = "river"
+parent = "pid"
+
     [rule.field]
     title = "es_title"
 
@@ -127,6 +129,7 @@ schema = "test"
 table = "test_river_[0-9]{4}"
 index = "river"
 type = "river"
+
     [rule.field]
     title = "es_title"
 
