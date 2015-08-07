@@ -67,7 +67,14 @@ func (r *River) makeRequest(rule *Rule, action string, rows [][]interface{}) ([]
 			return nil, err
 		}
 
-		req := &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: id}
+		parentID := ""
+		if len(rule.Parent) > 0 {
+			if parentID, err = r.getParentID(rule, values, rule.Parent); err != nil {
+				return nil, err
+			}
+		}
+
+		req := &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: id, Parent: parentID}
 
 		if action == canal.DeleteAction {
 			req.Action = elastic.ActionDelete
@@ -120,13 +127,13 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 			}
 		}
 
-		req := &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: beforeID}
+		req := &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: beforeID, Parent: beforeParentID}
 
 		if beforeID != afterID || beforeParentID != afterParentID {
 			req.Action = elastic.ActionDelete
 			reqs = append(reqs, req)
 
-			req = &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: afterID}
+			req = &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: afterID, Parent: afterParentID}
 			r.makeInsertReqData(req, rule, rows[i+1])
 
 			r.st.DeleteNum.Add(1)
@@ -191,10 +198,6 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 		} else {
 			req.Data[c.Name] = r.makeReqColumnData(&c, values[i])
 		}
-	}
-
-	if len(rule.Parent) > 0 {
-		req.Parent = fmt.Sprint(req.Data[rule.Parent])
 	}
 }
 
