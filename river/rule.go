@@ -17,10 +17,16 @@ type Rule struct {
 	// Default, a MySQL table field name is mapped to Elasticsearch field name.
 	// Sometimes, you want to use different name, e.g, the MySQL file name is title,
 	// but in Elasticsearch, you want to name it my_title.
-	FieldMapping map[string]string `toml:"field"`
+	FieldMapping []*FieldMapping `toml:"fields"`
 
 	// MySQL table information
 	TableInfo *schema.Table
+}
+
+type FieldMapping struct {
+	Mysql   string `toml:"mysql"`
+	Elastic string `toml:"elastic"`
+	Type    string `toml:"type"`
 }
 
 func newDefaultRule(schema string, table string) *Rule {
@@ -30,14 +36,14 @@ func newDefaultRule(schema string, table string) *Rule {
 	r.Table = table
 	r.Index = table
 	r.Type = table
-	r.FieldMapping = make(map[string]string)
+	r.FieldMapping = []*FieldMapping{}
 
 	return r
 }
 
 func (r *Rule) prepare() error {
 	if r.FieldMapping == nil {
-		r.FieldMapping = make(map[string]string)
+		r.FieldMapping = []*FieldMapping{}
 	}
 
 	if len(r.Index) == 0 {

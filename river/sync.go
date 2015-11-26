@@ -18,6 +18,10 @@ const (
 	syncUpdateDoc
 )
 
+const (
+	fieldTypeList = "list"
+)
+
 type rowsEventHandler struct {
 	r *River
 }
@@ -192,10 +196,23 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 	req.Action = elastic.ActionIndex
 
 	for i, c := range rule.TableInfo.Columns {
-		if name, ok := rule.FieldMapping[c.Name]; ok {
-			// has custom field mapping
-			req.Data[name] = r.makeReqColumnData(&c, values[i])
-		} else {
+		mapped := false
+		for _, m := range rule.FieldMapping {
+			if m.Mysql == c.Name {
+				mapped = true
+				v := r.makeReqColumnData(&c, values[i])
+				if m.Type == fieldTypeList {
+					if str, ok := v.(string); ok {
+						req.Data[m.Elastic] = strings.Split(str, ",")
+					} else {
+						req.Data[m.Elastic] = v
+					}
+				} else {
+					req.Data[m.Elastic] = v
+				}
+			}
+		}
+		if mapped == false {
 			req.Data[c.Name] = r.makeReqColumnData(&c, values[i])
 		}
 	}
@@ -209,16 +226,32 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 	req.Action = elastic.ActionUpdate
 
 	for i, c := range rule.TableInfo.Columns {
+		mapped := false
 		if reflect.DeepEqual(beforeValues[i], afterValues[i]) {
 			//nothing changed
 			continue
 		}
-		if name, ok := rule.FieldMapping[c.Name]; ok {
-			// has custom field mapping
-			req.Data[name] = r.makeReqColumnData(&c, afterValues[i])
-		} else {
+		for _, m := range rule.FieldMapping {
+			if m.Mysql == c.Name {
+				mapped = true
+				// has custom field mapping
+				v := r.makeReqColumnData(&c, afterValues[i])
+				str, ok := v.(string)
+				if ok == false {
+					req.Data[c.Name] = v
+				} else {
+					if m.Type == fieldTypeList {
+						req.Data[m.Elastic] = strings.Split(str, ",")
+					} else {
+						req.Data[m.Elastic] = str
+					}
+				}
+			}
+		}
+		if mapped == false {
 			req.Data[c.Name] = r.makeReqColumnData(&c, afterValues[i])
 		}
+
 	}
 }
 
