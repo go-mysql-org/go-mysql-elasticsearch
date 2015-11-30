@@ -71,22 +71,23 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river", "test_river_[0-9]{4}"}}}
 
 	mapping := []*FieldMapping{}
-	mapping = append(mapping, &FieldMapping{Mysql: "title", Elastic: "es_title"})
 	mapping = append(mapping, &FieldMapping{Mysql: "mylist", Elastic: "es_mylist", Type: "list"})
 
 	cfg.Rules = []*Rule{
 		&Rule{Schema: "test",
-			Table:        "test_river",
-			Index:        "river",
-			Type:         "river",
-			FieldMapping: mapping,
+			Table:              "test_river",
+			Index:              "river",
+			Type:               "river",
+			FieldMapping:       mapping,
+			SingleFieldMapping: map[string]string{"title": "es_title"},
 		},
 
 		&Rule{Schema: "test",
-			Table:        "test_river_[0-9]{4}",
-			Index:        "river",
-			Type:         "river",
-			FieldMapping: mapping,
+			Table:              "test_river_[0-9]{4}",
+			Index:              "river",
+			Type:               "river",
+			FieldMapping:       mapping,
+			SingleFieldMapping: map[string]string{"title": "es_title"},
 		},
 	}
 
