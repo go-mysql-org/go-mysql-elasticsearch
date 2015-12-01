@@ -1,6 +1,8 @@
 package river
 
 import (
+	"strings"
+
 	"github.com/siddontang/go-mysql/schema"
 )
 
@@ -17,8 +19,8 @@ type Rule struct {
 	// Default, a MySQL table field name is mapped to Elasticsearch field name.
 	// Sometimes, you want to use different name, e.g, the MySQL file name is title,
 	// but in Elasticsearch, you want to name it my_title.
-	FieldMapping       []*FieldMapping   `toml:"fields"`
 	SingleFieldMapping map[string]string `toml:"field"`
+	FieldMapping       []*FieldMapping
 
 	// MySQL table information
 	TableInfo *schema.Table
@@ -50,9 +52,16 @@ func (r *Rule) prepare() error {
 
 	if r.SingleFieldMapping != nil {
 		for k, v := range r.SingleFieldMapping {
+			composedField := strings.Split(v, ",")
 			field := FieldMapping{
 				Mysql:   k,
-				Elastic: v,
+				Elastic: composedField[0],
+			}
+			if 0 == len(field.Elastic) {
+				field.Elastic = field.Mysql
+			}
+			if 2 == len(composedField) {
+				field.Type = composedField[1]
 			}
 			r.FieldMapping = append(r.FieldMapping, &field)
 		}

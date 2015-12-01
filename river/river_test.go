@@ -130,13 +130,9 @@ index = "river"
 type = "river"
 parent = "pid"
 
-    [[rule.fields]]
-    mysql = "title"
-    elastic = "es_title"
-
-    [[rule.fields]]
-    mysql = "mylist"
-    elastic = "es_mylist"
+    [rule.field]
+    title = "es_title"
+    mylist = "es_mylist,list"
 
 [[rule]]
 schema = "test"
@@ -144,13 +140,9 @@ table = "test_river_[0-9]{4}"
 index = "river"
 type = "river"
 
-    [[rule.fields]]
-    mysql = "title"
-    elastic = "es_title"
-
-    [[rule.fields]]
-    mysql = "mylist"
-    elastic = "es_mylist"
+    [rule.field]
+    title = "es_title"
+    mylist = "es_mylist,list"
 
 `
 
