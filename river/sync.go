@@ -191,24 +191,42 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 	return value
 }
 
+func (r *River) getFieldParts(k string, v string) (string, string, string) {
+	composedField := strings.Split(v, ",")
+
+	mysql := k
+	elastic := composedField[0]
+	fieldType := ""
+
+	if 0 == len(elastic) {
+		elastic = mysql
+	}
+	if 2 == len(composedField) {
+		fieldType = composedField[1]
+	}
+
+	return mysql, elastic, fieldType
+}
+
 func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values []interface{}) {
 	req.Data = make(map[string]interface{}, len(values))
 	req.Action = elastic.ActionIndex
 
 	for i, c := range rule.TableInfo.Columns {
 		mapped := false
-		for _, m := range rule.FieldMapping {
-			if m.Mysql == c.Name {
+		for k, v := range rule.FieldMapping {
+			mysql, elastic, fieldType := r.getFieldParts(k, v)
+			if mysql == c.Name {
 				mapped = true
 				v := r.makeReqColumnData(&c, values[i])
-				if m.Type == fieldTypeList {
+				if fieldType == fieldTypeList {
 					if str, ok := v.(string); ok {
-						req.Data[m.Elastic] = strings.Split(str, ",")
+						req.Data[elastic] = strings.Split(str, ",")
 					} else {
-						req.Data[m.Elastic] = v
+						req.Data[elastic] = v
 					}
 				} else {
-					req.Data[m.Elastic] = v
+					req.Data[elastic] = v
 				}
 			}
 		}
@@ -231,8 +249,9 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 			//nothing changed
 			continue
 		}
-		for _, m := range rule.FieldMapping {
-			if m.Mysql == c.Name {
+		for k, v := range rule.FieldMapping {
+			mysql, elastic, fieldType := r.getFieldParts(k, v)
+			if mysql == c.Name {
 				mapped = true
 				// has custom field mapping
 				v := r.makeReqColumnData(&c, afterValues[i])
@@ -240,10 +259,10 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 				if ok == false {
 					req.Data[c.Name] = v
 				} else {
-					if m.Type == fieldTypeList {
-						req.Data[m.Elastic] = strings.Split(str, ",")
+					if fieldType == fieldTypeList {
+						req.Data[elastic] = strings.Split(str, ",")
 					} else {
-						req.Data[m.Elastic] = str
+						req.Data[elastic] = str
 					}
 				}
 			}
