@@ -18,6 +18,10 @@ const (
 	syncUpdateDoc
 )
 
+const (
+	fieldTypeList = "list"
+)
+
 type rowsEventHandler struct {
 	r *River
 }
@@ -187,15 +191,46 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 	return value
 }
 
+func (r *River) getFieldParts(k string, v string) (string, string, string) {
+	composedField := strings.Split(v, ",")
+
+	mysql := k
+	elastic := composedField[0]
+	fieldType := ""
+
+	if 0 == len(elastic) {
+		elastic = mysql
+	}
+	if 2 == len(composedField) {
+		fieldType = composedField[1]
+	}
+
+	return mysql, elastic, fieldType
+}
+
 func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values []interface{}) {
 	req.Data = make(map[string]interface{}, len(values))
 	req.Action = elastic.ActionIndex
 
 	for i, c := range rule.TableInfo.Columns {
-		if name, ok := rule.FieldMapping[c.Name]; ok {
-			// has custom field mapping
-			req.Data[name] = r.makeReqColumnData(&c, values[i])
-		} else {
+		mapped := false
+		for k, v := range rule.FieldMapping {
+			mysql, elastic, fieldType := r.getFieldParts(k, v)
+			if mysql == c.Name {
+				mapped = true
+				v := r.makeReqColumnData(&c, values[i])
+				if fieldType == fieldTypeList {
+					if str, ok := v.(string); ok {
+						req.Data[elastic] = strings.Split(str, ",")
+					} else {
+						req.Data[elastic] = v
+					}
+				} else {
+					req.Data[elastic] = v
+				}
+			}
+		}
+		if mapped == false {
 			req.Data[c.Name] = r.makeReqColumnData(&c, values[i])
 		}
 	}
@@ -209,16 +244,33 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 	req.Action = elastic.ActionUpdate
 
 	for i, c := range rule.TableInfo.Columns {
+		mapped := false
 		if reflect.DeepEqual(beforeValues[i], afterValues[i]) {
 			//nothing changed
 			continue
 		}
-		if name, ok := rule.FieldMapping[c.Name]; ok {
-			// has custom field mapping
-			req.Data[name] = r.makeReqColumnData(&c, afterValues[i])
-		} else {
+		for k, v := range rule.FieldMapping {
+			mysql, elastic, fieldType := r.getFieldParts(k, v)
+			if mysql == c.Name {
+				mapped = true
+				// has custom field mapping
+				v := r.makeReqColumnData(&c, afterValues[i])
+				str, ok := v.(string)
+				if ok == false {
+					req.Data[c.Name] = v
+				} else {
+					if fieldType == fieldTypeList {
+						req.Data[elastic] = strings.Split(str, ",")
+					} else {
+						req.Data[elastic] = str
+					}
+				}
+			}
+		}
+		if mapped == false {
 			req.Data[c.Name] = r.makeReqColumnData(&c, afterValues[i])
 		}
+
 	}
 }
 

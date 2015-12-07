@@ -65,11 +65,37 @@ index = "t"
 type = "t"
 parent = "parent_id"
 
-    [rule.field]
-    title = "my_title"
+    [[rule.fields]]
+    mysql = "title"
+    elastic = "my_title"
 ```
 
 In the example above, we will use a new index and type both named "t" instead of default "t1", and use "my_title" instead of field name "title".
+
+## Rule field types
+
+In order to map a mysql column on different elasticsearch types you can define the field type as follows:
+
+```
+[[rule]]
+schema = "test"
+table = "t1"
+index = "t"
+type = "t"
+parent = "parent_id"
+
+    [rule.field]
+    // This will map column title to elastic search my_title
+    title="my_title"
+
+    // This will map column title to elastic search my_title and use array type
+    title="my_title,list"
+
+    // This will map column title to elastic search title and use array type
+    title=",list"
+```
+
+Modifier "list" will translates a mysql string field like "a,b,c" on an elastic array type '{"a", "b", "c"}' this is specially useful if you need to use those fields on filtering on elasticsearch.
 
 ## Wildcard table
 

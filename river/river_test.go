@@ -37,6 +37,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
             id INT,
             title VARCHAR(256),
             content VARCHAR(256),
+            mylist VARCHAR(256),
             tenum ENUM("e1", "e2", "e3"),
             tset SET("a", "b", "c"),
             PRIMARY KEY(id)) ENGINE=INNODB;
@@ -74,13 +75,16 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 			Table:        "test_river",
 			Index:        "river",
 			Type:         "river",
-			FieldMapping: map[string]string{"title": "es_title"}},
+			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
+		},
 
 		&Rule{Schema: "test",
 			Table:        "test_river_[0-9]{4}",
 			Index:        "river",
 			Type:         "river",
-			FieldMapping: map[string]string{"title": "es_title"}}}
+			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
+		},
+	}
 
 	s.r, err = NewRiver(cfg)
 	c.Assert(err, IsNil)
@@ -123,6 +127,7 @@ parent = "pid"
 
     [rule.field]
     title = "es_title"
+    mylist = "es_mylist,list"
 
 [[rule]]
 schema = "test"
@@ -132,6 +137,7 @@ type = "river"
 
     [rule.field]
     title = "es_title"
+    mylist = "es_mylist,list"
 
 `
 
@@ -196,7 +202,7 @@ func (s *riverTestSuite) TestRiver(c *C) {
 		c.Assert(r.Source["es_title"], Equals, "abc")
 	}
 
-	s.testExecute(c, "UPDATE test_river SET title = ?, tenum = ?, tset = ? WHERE id = ?", "second 2", "e3", "a,b,c", 2)
+	s.testExecute(c, "UPDATE test_river SET title = ?, tenum = ?, tset = ?, mylist = ? WHERE id = ?", "second 2", "e3", "a,b,c", "a,b,c", 2)
 	s.testExecute(c, "DELETE FROM test_river WHERE id = ?", 1)
 	s.testExecute(c, "UPDATE test_river SET title = ?, id = ? WHERE id = ?", "second 30", 30, 3)
 
@@ -221,6 +227,7 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	c.Assert(r.Source["es_title"], Equals, "second 2")
 	c.Assert(r.Source["tenum"], Equals, "e3")
 	c.Assert(r.Source["tset"], Equals, "a,b,c")
+	c.Assert(r.Source["es_mylist"], DeepEquals, []interface{}{"a", "b", "c"})
 
 	r = s.testElasticGet(c, "4")
 	c.Assert(r.Found, Equals, true)

@@ -40,7 +40,12 @@ type = "river"
 
     # title is MySQL test_river field name, es_title is the customized name in Elasticsearch
     [rule.field]
-    title = "es_title"
+    # This will map column title to elastic search my_title
+    title="es_title"
+    # This will map column tags to elastic search my_tags and use array type
+    tags="my_tags,list"
+    # This will map column keywords to elastic search keywords and use array type
+    keywords=",list"
 
 # wildcard table rule, the wildcard table must be in source tables 
 [[rule]]
@@ -50,7 +55,8 @@ index = "river"
 type = "river"
 
     # title is MySQL test_river field name, es_title is the customized name in Elasticsearch
-    [rule.field]
-    title = "es_title"
+    [[rule.fields]]
+    mysql = "title"
+    elastic = "es_title"
 
 
