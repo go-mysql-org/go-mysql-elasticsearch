@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/siddontang/go-mysql-elasticsearch",
-	"GoVersion": "go1.4.2",
+	"GoVersion": "go1.5.2",
 	"Packages": [
 		"./..."
 	],
@@ -8,6 +8,10 @@
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
 			"Rev": "2ceedfee35ad3848e49308ab0c9a4f640cfb5fb2"
+		},
+		{
+			"ImportPath": "github.com/juju/errors",
+			"Rev": "1b5e39b83d1835fa480e0c2ddefb040ee82d58b3"
 		},
 		{
 			"ImportPath": "github.com/satori/go.uuid",
