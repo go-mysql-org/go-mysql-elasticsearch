@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"sync"
 
+	"github.com/juju/errors"
 	"github.com/siddontang/go-mysql/canal"
 
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
@@ -40,20 +41,20 @@ func NewRiver(c *Config) (*River, error) {
 
 	var err error
 	if err = r.newCanal(); err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	if err = r.prepareRule(); err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	if err = r.prepareCanal(); err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	// We must use binlog full row image
 	if err = r.canal.CheckBinlogRowImage("FULL"); err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	r.es = elastic.NewClient(r.c.ESAddr)
@@ -113,7 +114,7 @@ func (r *River) newRule(schema, table string) error {
 	key := ruleKey(schema, table)
 
 	if _, ok := r.rules[key]; ok {
-		return fmt.Errorf("duplicate source %s, %s defined in config", schema, table)
+		return errors.Errorf("duplicate source %s, %s defined in config", schema, table)
 	}
 
 	r.rules[key] = newDefaultRule(schema, table)
@@ -127,12 +128,12 @@ func (r *River) parseSource() (map[string][]string, error) {
 	for _, s := range r.c.Sources {
 		for _, table := range s.Tables {
 			if len(s.Schema) == 0 {
-				return nil, fmt.Errorf("empty schema not allowed for source")
+				return nil, errors.Errorf("empty schema not allowed for source")
 			}
 
 			if regexp.QuoteMeta(table) != table {
 				if _, ok := wildTables[ruleKey(s.Schema, table)]; ok {
-					return nil, fmt.Errorf("duplicate wildcard table defined for %s.%s", s.Schema, table)
+					return nil, errors.Errorf("duplicate wildcard table defined for %s.%s", s.Schema, table)
 				}
 
 				tables := []string{}
@@ -142,14 +143,14 @@ func (r *River) parseSource() (map[string][]string, error) {
 
 				res, err := r.canal.Execute(sql)
 				if err != nil {
-					return nil, err
+					return nil, errors.Trace(err)
 				}
 
 				for i := 0; i < res.Resultset.RowNumber(); i++ {
 					f, _ := res.GetString(i, 0)
 					err := r.newRule(s.Schema, f)
 					if err != nil {
-						return nil, err
+						return nil, errors.Trace(err)
 					}
 
 					tables = append(tables, f)
@@ -159,14 +160,14 @@ func (r *River) parseSource() (map[string][]string, error) {
 			} else {
 				err := r.newRule(s.Schema, table)
 				if err != nil {
-					return nil, err
+					return nil, errors.Trace(err)
 				}
 			}
 		}
 	}
 
 	if len(r.rules) == 0 {
-		return nil, fmt.Errorf("no source data defined")
+		return nil, errors.Errorf("no source data defined")
 	}
 
 	return wildTables, nil
@@ -182,18 +183,18 @@ func (r *River) prepareRule() error {
 		// then, set custom mapping rule
 		for _, rule := range r.c.Rules {
 			if len(rule.Schema) == 0 {
-				return fmt.Errorf("empty schema not allowed for rule")
+				return errors.Errorf("empty schema not allowed for rule")
 			}
 
 			if regexp.QuoteMeta(rule.Table) != rule.Table {
 				//wildcard table
 				tables, ok := wildtables[ruleKey(rule.Schema, rule.Table)]
 				if !ok {
-					return fmt.Errorf("wildcard table for %s.%s is not defined in source", rule.Schema, rule.Table)
+					return errors.Errorf("wildcard table for %s.%s is not defined in source", rule.Schema, rule.Table)
 				}
 
 				if len(rule.Index) == 0 {
-					return fmt.Errorf("wildcard table rule %s.%s must have a index, can not empty", rule.Schema, rule.Table)
+					return errors.Errorf("wildcard table rule %s.%s must have a index, can not empty", rule.Schema, rule.Table)
 				}
 
 				rule.prepare()
@@ -208,7 +209,7 @@ func (r *River) prepareRule() error {
 			} else {
 				key := ruleKey(rule.Schema, rule.Table)
 				if _, ok := r.rules[key]; !ok {
-					return fmt.Errorf("rule %s, %s not defined in source", rule.Schema, rule.Table)
+					return errors.Errorf("rule %s, %s not defined in source", rule.Schema, rule.Table)
 				}
 				rule.prepare()
 				r.rules[key] = rule
@@ -224,7 +225,7 @@ func (r *River) prepareRule() error {
 		// table must have a PK for one column, multi columns may be supported later.
 
 		if len(rule.TableInfo.PKColumns) != 1 {
-			return fmt.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
+			return errors.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
 		}
 	}
 

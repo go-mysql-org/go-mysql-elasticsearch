@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/juju/errors"
 	"github.com/siddontang/go-mysql-elasticsearch/river"
 )
 
@@ -35,7 +36,7 @@ func main() {
 
 	cfg, err := river.NewConfigWithFile(*configFile)
 	if err != nil {
-		println(err.Error())
+		println(errors.ErrorStack(err))
 		return
 	}
 
@@ -73,7 +74,7 @@ func main() {
 
 	r, err := river.NewRiver(cfg)
 	if err != nil {
-		println(err.Error())
+		println(errors.ErrorStack(err))
 		return
 	}
 

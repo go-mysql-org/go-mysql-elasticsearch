@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 
 	"github.com/BurntSushi/toml"
+	"github.com/juju/errors"
 )
 
 type SourceConfig struct {
@@ -34,7 +35,7 @@ type Config struct {
 func NewConfigWithFile(name string) (*Config, error) {
 	data, err := ioutil.ReadFile(name)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	return NewConfig(string(data))
@@ -45,7 +46,7 @@ func NewConfig(data string) (*Config, error) {
 
 	_, err := toml.Decode(data, &c)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	return &c, nil

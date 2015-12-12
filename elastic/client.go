@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+
+	"github.com/juju/errors"
 )
 
 // Although there are many Elasticsearch clients with Go, I still want to implement one by myself.
@@ -79,7 +81,7 @@ func (r *BulkRequest) bulk(buf *bytes.Buffer) error {
 
 	data, err := json.Marshal(meta)
 	if err != nil {
-		return err
+		return errors.Trace(err)
 	}
 
 	buf.Write(data)
@@ -94,7 +96,7 @@ func (r *BulkRequest) bulk(buf *bytes.Buffer) error {
 		}
 		data, err = json.Marshal(doc)
 		if err != nil {
-			return err
+			return errors.Trace(err)
 		}
 
 		buf.Write(data)
@@ -103,7 +105,7 @@ func (r *BulkRequest) bulk(buf *bytes.Buffer) error {
 		//for create and index
 		data, err = json.Marshal(r.Data)
 		if err != nil {
-			return err
+			return errors.Trace(err)
 		}
 
 		buf.Write(data)
@@ -134,19 +136,19 @@ type BulkResponseItem struct {
 func (c *Client) Do(method string, url string, body map[string]interface{}) (*Response, error) {
 	bodyData, err := json.Marshal(body)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	buf := bytes.NewBuffer(bodyData)
 
 	req, err := http.NewRequest(method, url, buf)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	resp, err := c.c.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	ret := new(Response)
@@ -167,18 +169,18 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 
 	for _, item := range items {
 		if err := item.bulk(&buf); err != nil {
-			return nil, err
+			return nil, errors.Trace(err)
 		}
 	}
 
 	req, err := http.NewRequest("POST", url, &buf)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	resp, err := c.c.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	ret := new(BulkResponse)
@@ -200,7 +202,7 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 
 	r, err := c.Do("HEAD", reqUrl, nil)
 	if err != nil {
-		return err
+		return errors.Trace(err)
 	}
 
 	// index doesn't exist, create index first
@@ -208,7 +210,7 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 		_, err = c.Do("POST", reqUrl, nil)
 
 		if err != nil {
-			return err
+			return errors.Trace(err)
 		}
 	}
 
@@ -217,7 +219,7 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 		url.QueryEscape(docType))
 
 	_, err = c.Do("POST", reqUrl, mapping)
-	return err
+	return errors.Trace(err)
 }
 
 func (c *Client) DeleteIndex(index string) error {
@@ -226,13 +228,13 @@ func (c *Client) DeleteIndex(index string) error {
 
 	r, err := c.Do("DELETE", reqUrl, nil)
 	if err != nil {
-		return err
+		return errors.Trace(err)
 	}
 
 	if r.Code == http.StatusOK || r.Code == http.StatusNotFound {
 		return nil
 	} else {
-		return fmt.Errorf("Error: %s, code: %d", http.StatusText(r.Code), r.Code)
+		return errors.Errorf("Error: %s, code: %d", http.StatusText(r.Code), r.Code)
 	}
 }
 
@@ -254,13 +256,13 @@ func (c *Client) Update(index string, docType string, id string, data map[string
 
 	r, err := c.Do("PUT", reqUrl, data)
 	if err != nil {
-		return err
+		return errors.Trace(err)
 	}
 
 	if r.Code == http.StatusOK || r.Code == http.StatusCreated {
 		return nil
 	} else {
-		return fmt.Errorf("Error: %s, code: %d", http.StatusText(r.Code), r.Code)
+		return errors.Errorf("Error: %s, code: %d", http.StatusText(r.Code), r.Code)
 	}
 }
 
@@ -286,13 +288,13 @@ func (c *Client) Delete(index string, docType string, id string) error {
 
 	r, err := c.Do("DELETE", reqUrl, nil)
 	if err != nil {
-		return err
+		return errors.Trace(err)
 	}
 
 	if r.Code == http.StatusOK || r.Code == http.StatusNotFound {
 		return nil
 	} else {
-		return fmt.Errorf("Error: %s, code: %d", http.StatusText(r.Code), r.Code)
+		return errors.Errorf("Error: %s, code: %d", http.StatusText(r.Code), r.Code)
 	}
 }
 

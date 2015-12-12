@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/juju/errors"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/schema"
@@ -42,11 +43,11 @@ func (h *rowsEventHandler) Do(e *canal.RowsEvent) error {
 	case canal.UpdateAction:
 		reqs, err = h.r.makeUpdateRequest(rule, e.Rows)
 	default:
-		return fmt.Errorf("invalid rows action %s", e.Action)
+		return errors.Errorf("invalid rows action %s", e.Action)
 	}
 
 	if err != nil {
-		return fmt.Errorf("make %s ES request err %v", e.Action, err)
+		return errors.Errorf("make %s ES request err %v", e.Action, err)
 	}
 
 	if err := h.r.doBulk(reqs); err != nil {
@@ -68,13 +69,13 @@ func (r *River) makeRequest(rule *Rule, action string, rows [][]interface{}) ([]
 	for _, values := range rows {
 		id, err := r.getDocID(rule, values)
 		if err != nil {
-			return nil, err
+			return nil, errors.Trace(err)
 		}
 
 		parentID := ""
 		if len(rule.Parent) > 0 {
 			if parentID, err = r.getParentID(rule, values, rule.Parent); err != nil {
-				return nil, err
+				return nil, errors.Trace(err)
 			}
 		}
 
@@ -104,7 +105,7 @@ func (r *River) makeDeleteRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 
 func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.BulkRequest, error) {
 	if len(rows)%2 != 0 {
-		return nil, fmt.Errorf("invalid update rows event, must have 2x rows, but %d", len(rows))
+		return nil, errors.Errorf("invalid update rows event, must have 2x rows, but %d", len(rows))
 	}
 
 	reqs := make([]*elastic.BulkRequest, 0, len(rows))
@@ -112,22 +113,22 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 	for i := 0; i < len(rows); i += 2 {
 		beforeID, err := r.getDocID(rule, rows[i])
 		if err != nil {
-			return nil, err
+			return nil, errors.Trace(err)
 		}
 
 		afterID, err := r.getDocID(rule, rows[i+1])
 
 		if err != nil {
-			return nil, err
+			return nil, errors.Trace(err)
 		}
 
 		beforeParentID, afterParentID := "", ""
 		if len(rule.Parent) > 0 {
 			if beforeParentID, err = r.getParentID(rule, rows[i], rule.Parent); err != nil {
-				return nil, err
+				return nil, errors.Trace(err)
 			}
 			if afterParentID, err = r.getParentID(rule, rows[i+1], rule.Parent); err != nil {
-				return nil, err
+				return nil, errors.Trace(err)
 			}
 		}
 
@@ -287,7 +288,7 @@ func (r *River) getDocID(rule *Rule, row []interface{}) (string, error) {
 	sep := ""
 	for i, value := range pks {
 		if value == nil {
-			return "", fmt.Errorf("The %ds PK value is nil", i)
+			return "", errors.Errorf("The %ds PK value is nil", i)
 		}
 
 		buf.WriteString(fmt.Sprintf("%s%v", sep, value))
@@ -300,7 +301,7 @@ func (r *River) getDocID(rule *Rule, row []interface{}) (string, error) {
 func (r *River) getParentID(rule *Rule, row []interface{}, columnName string) (string, error) {
 	index := rule.TableInfo.FindColumn(columnName)
 	if index < 0 {
-		return "", fmt.Errorf("parent id not found %s(%s)", rule.TableInfo.Name, columnName)
+		return "", errors.Errorf("parent id not found %s(%s)", rule.TableInfo.Name, columnName)
 	}
 
 	return fmt.Sprint(row[index]), nil
