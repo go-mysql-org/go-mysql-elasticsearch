@@ -79,7 +79,7 @@ func (r *River) newCanal() error {
 
 	var err error
 	r.canal, err = canal.NewCanal(cfg)
-	return err
+	return errors.Trace(err)
 }
 
 func (r *River) prepareCanal() error {
@@ -176,7 +176,7 @@ func (r *River) parseSource() (map[string][]string, error) {
 func (r *River) prepareRule() error {
 	wildtables, err := r.parseSource()
 	if err != nil {
-		return err
+		return errors.Trace(err)
 	}
 
 	if r.c.Rules != nil {
@@ -219,7 +219,7 @@ func (r *River) prepareRule() error {
 
 	for _, rule := range r.rules {
 		if rule.TableInfo, err = r.canal.GetTable(rule.Schema, rule.Table); err != nil {
-			return err
+			return errors.Trace(err)
 		}
 
 		// table must have a PK for one column, multi columns may be supported later.
@@ -239,7 +239,7 @@ func ruleKey(schema string, table string) string {
 func (r *River) Run() error {
 	if err := r.canal.Start(); err != nil {
 		log.Errorf("start canal err %v", err)
-		return err
+		return errors.Trace(err)
 	}
 
 	return nil
