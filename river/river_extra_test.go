@@ -23,6 +23,15 @@ func (s *riverTestSuite) setupExtra(c *C) (r *River) {
 	s.testExecute(c, "DROP TABLE IF EXISTS test_river_extra")
 	s.testExecute(c, fmt.Sprintf(schema, "test_river_extra"))
 
+	schema = `
+        CREATE TABLE IF NOT EXISTS %s (
+            id INT,
+            PRIMARY KEY(id)) ENGINE=INNODB;
+    `
+
+	s.testExecute(c, "DROP TABLE IF EXISTS test_river_parent")
+	s.testExecute(c, fmt.Sprintf(schema, "test_river_parent"))
+
 	cfg := new(Config)
 	cfg.MyAddr = *my_addr
 	cfg.MyUser = "root"
@@ -39,9 +48,13 @@ func (s *riverTestSuite) setupExtra(c *C) (r *River) {
 
 	os.RemoveAll(cfg.DataDir)
 
-	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river_extra"}}}
+	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river_extra", "test_river_parent"}}}
 
 	cfg.Rules = []*Rule{
+		&Rule{Schema: "test",
+			Table: "test_river_parent",
+			Index: "river",
+			Type:  "river_extra_parent"},
 		&Rule{Schema: "test",
 			Table:  "test_river_extra",
 			Index:  "river",
@@ -53,7 +66,7 @@ func (s *riverTestSuite) setupExtra(c *C) (r *River) {
 
 	mapping := map[string]interface{}{
 		"river_extra": map[string]interface{}{
-			"_parent": map[string]string{"type": "river_extra"},
+			"_parent": map[string]string{"type": "river_extra_parent"},
 		},
 	}
 
@@ -63,6 +76,7 @@ func (s *riverTestSuite) setupExtra(c *C) (r *River) {
 }
 
 func (s *riverTestSuite) testPrepareExtraData(c *C) {
+	s.testExecute(c, "INSERT INTO test_river_parent (id) VALUES (?)", 1)
 	s.testExecute(c, "INSERT INTO test_river_extra (id, title, pid) VALUES (?, ?, ?)", 1, "first", 1)
 	s.testExecute(c, "INSERT INTO test_river_extra (id, title, pid) VALUES (?, ?, ?)", 2, "second", 1)
 	s.testExecute(c, "INSERT INTO test_river_extra (id, title, pid) VALUES (?, ?, ?)", 3, "third", 1)
