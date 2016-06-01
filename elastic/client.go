@@ -129,7 +129,7 @@ type BulkResponseItem struct {
 	ID      string `json:"_id"`
 	Version int    `json:"_version"`
 	Status  int    `json:"status"`
-	Error   string `json:"error"`
+	Error   json.RawMessage `json:"error"`
 	Found   bool   `json:"found"`
 }
 
