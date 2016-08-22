@@ -20,6 +20,7 @@ server_id = 1001
 flavor = "mysql"
 
 # mysqldump execution path
+# if not set or empty, ignore mysqldump.
 mysqldump = "mysqldump"
 
 # MySQL data source
