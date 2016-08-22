@@ -1,69 +1,72 @@
 {
 	"ImportPath": "github.com/siddontang/go-mysql-elasticsearch",
-	"GoVersion": "go1.5.2",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v74",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
-			"Rev": "2ceedfee35ad3848e49308ab0c9a4f640cfb5fb2"
+			"Comment": "v0.1.0-21-g056c9bc",
+			"Rev": "056c9bc7be7190eaa7715723883caffa5f8fa3e4"
 		},
 		{
 			"ImportPath": "github.com/juju/errors",
-			"Rev": "1b5e39b83d1835fa480e0c2ddefb040ee82d58b3"
+			"Rev": "6f54ff6318409d31ff16261533ce2c8381a4fd5d"
 		},
 		{
 			"ImportPath": "github.com/satori/go.uuid",
-			"Rev": "a07c134f8289edd9ac6ee6f0aa5f3d345f4aaf27"
+			"Comment": "v1.1.0",
+			"Rev": "879c5887cd475cd7864858769793b2ceb0d44feb"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/canal",
-			"Rev": "f55c26065df6b248dc29fd274c21776a2109b51f"
+			"Rev": "a65c9e70a7a39a92d4cacc762fe11a7f02cb3e64"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/client",
-			"Rev": "f55c26065df6b248dc29fd274c21776a2109b51f"
+			"Rev": "a65c9e70a7a39a92d4cacc762fe11a7f02cb3e64"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/dump",
-			"Rev": "f55c26065df6b248dc29fd274c21776a2109b51f"
+			"Rev": "a65c9e70a7a39a92d4cacc762fe11a7f02cb3e64"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/mysql",
-			"Rev": "f55c26065df6b248dc29fd274c21776a2109b51f"
+			"Rev": "a65c9e70a7a39a92d4cacc762fe11a7f02cb3e64"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/packet",
-			"Rev": "f55c26065df6b248dc29fd274c21776a2109b51f"
+			"Rev": "a65c9e70a7a39a92d4cacc762fe11a7f02cb3e64"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/replication",
-			"Rev": "f55c26065df6b248dc29fd274c21776a2109b51f"
+			"Rev": "a65c9e70a7a39a92d4cacc762fe11a7f02cb3e64"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go-mysql/schema",
-			"Rev": "f55c26065df6b248dc29fd274c21776a2109b51f"
+			"Rev": "a65c9e70a7a39a92d4cacc762fe11a7f02cb3e64"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go/hack",
-			"Rev": "530a23162549a31baa14dfa3b647a9eccee8878f"
+			"Rev": "354e14e6c093c661abb29fd28403b3c19cff5514"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go/ioutil2",
-			"Rev": "530a23162549a31baa14dfa3b647a9eccee8878f"
+			"Rev": "354e14e6c093c661abb29fd28403b3c19cff5514"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go/log",
-			"Rev": "530a23162549a31baa14dfa3b647a9eccee8878f"
+			"Rev": "354e14e6c093c661abb29fd28403b3c19cff5514"
 		},
 		{
 			"ImportPath": "github.com/siddontang/go/sync2",
-			"Rev": "530a23162549a31baa14dfa3b647a9eccee8878f"
+			"Rev": "354e14e6c093c661abb29fd28403b3c19cff5514"
 		},
 		{
 			"ImportPath": "gopkg.in/check.v1",
-			"Rev": "64131543e7896d5bcc6bd5a76287eb75ea96c673"
+			"Rev": "11d3bc7aa68e238947792f30573146a3231fc0f1"
 		}
 	]
 }
