@@ -6,10 +6,10 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
+	"github.com/ngaut/log"
 	"github.com/siddontang/go-mysql/canal"
 
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
-	"github.com/siddontang/go/log"
 )
 
 // In Elasticsearch, river is a pluggable service within Elasticsearch pulling data then indexing it into Elasticsearch.
