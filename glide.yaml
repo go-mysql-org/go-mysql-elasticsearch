@@ -7,7 +7,7 @@ import:
 - package: github.com/satori/go.uuid
   version: ^1.1.0
 - package: github.com/siddontang/go-mysql
-  version: bc99d04d6e17f870415b85cc189e2839df9dcef7
+  version: b2419e8445c408ae066e7e974df78a65ddf3bc25
   subpackages:
   - canal
   - client
