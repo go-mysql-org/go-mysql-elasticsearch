@@ -1,0 +1,29 @@
+hash: df3fb6d333038ef859c1ec1176997b96b4d3ef53800c039931b3958b53071a65
+updated: 2016-09-04T10:03:52.054451618+08:00
+imports:
+- name: github.com/BurntSushi/toml
+  version: 056c9bc7be7190eaa7715723883caffa5f8fa3e4
+- name: github.com/juju/errors
+  version: 6f54ff6318409d31ff16261533ce2c8381a4fd5d
+- name: github.com/satori/go.uuid
+  version: 879c5887cd475cd7864858769793b2ceb0d44feb
+- name: github.com/siddontang/go
+  version: 354e14e6c093c661abb29fd28403b3c19cff5514
+  subpackages:
+  - hack
+  - ioutil2
+  - log
+  - sync2
+- name: github.com/siddontang/go-mysql
+  version: a65c9e70a7a39a92d4cacc762fe11a7f02cb3e64
+  subpackages:
+  - canal
+  - client
+  - dump
+  - mysql
+  - packet
+  - replication
+  - schema
+- name: gopkg.in/check.v1
+  version: 11d3bc7aa68e238947792f30573146a3231fc0f1
+testImports: []
