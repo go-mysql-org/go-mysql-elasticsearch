@@ -1,10 +1,12 @@
-hash: df3fb6d333038ef859c1ec1176997b96b4d3ef53800c039931b3958b53071a65
-updated: 2016-09-04T10:03:52.054451618+08:00
+hash: 9ebaa4f5f34228811ab0e048f8f9e782f900212bd7ab61d17317e19ed64089f9
+updated: 2016-09-04T11:36:44.169743587+08:00
 imports:
 - name: github.com/BurntSushi/toml
   version: 056c9bc7be7190eaa7715723883caffa5f8fa3e4
 - name: github.com/juju/errors
   version: 6f54ff6318409d31ff16261533ce2c8381a4fd5d
+- name: github.com/ngaut/log
+  version: cec23d3e10b016363780d894a0eb732a12c06e02
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/siddontang/go
@@ -12,10 +14,9 @@ imports:
   subpackages:
   - hack
   - ioutil2
-  - log
   - sync2
 - name: github.com/siddontang/go-mysql
-  version: a65c9e70a7a39a92d4cacc762fe11a7f02cb3e64
+  version: bc99d04d6e17f870415b85cc189e2839df9dcef7
   subpackages:
   - canal
   - client
@@ -24,6 +25,10 @@ imports:
   - packet
   - replication
   - schema
+- name: golang.org/x/net
+  version: 6acef71eb69611914f7a30939ea9f6e194c78172
+  subpackages:
+  - context
 - name: gopkg.in/check.v1
   version: 11d3bc7aa68e238947792f30573146a3231fc0f1
 testImports: []
