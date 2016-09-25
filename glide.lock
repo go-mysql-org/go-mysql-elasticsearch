@@ -1,5 +1,5 @@
-hash: 617d3f97c39c0c918aa5ffc301f6686e64253dbc773870ff070b84a3c12e037c
-updated: 2016-09-21T19:52:48.478732343+08:00
+hash: 8f41ee8eba5fd7d52105142b100abbe43dd7264bffad40f9c2b2073e0e0ea7e6
+updated: 2016-09-25T09:50:03.935556397+08:00
 imports:
 - name: github.com/BurntSushi/toml
   version: 056c9bc7be7190eaa7715723883caffa5f8fa3e4
@@ -16,7 +16,7 @@ imports:
   - ioutil2
   - sync2
 - name: github.com/siddontang/go-mysql
-  version: 0d97cda3fb1994f844522d6f6fba28badb7f0484
+  version: d8e777f00cdbb2bc200ebeb80364b0bcc098362e
   subpackages:
   - canal
   - client

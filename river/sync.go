@@ -182,6 +182,17 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 			}
 			return strings.Join(sets, ",")
 		}
+	case schema.TYPE_BIT:
+		switch value := value.(type) {
+		case string:
+			// for binlog, BIT is int64, but for dump, BIT is string
+			// for dump 0x01 is for 1, \0 is for 0
+			if value == "\x01" {
+				return int64(1)
+			}
+
+			return int64(0)
+		}
 	case schema.TYPE_STRING:
 		switch value := value.(type) {
 		case []byte:
