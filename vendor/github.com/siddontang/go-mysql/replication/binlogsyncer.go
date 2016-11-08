@@ -514,6 +514,8 @@ func (b *BinlogSyncer) onStream(s *BinlogStreamer) {
 				s.closeWithError(err)
 				return
 			}
+		case EOF_HEADER:
+			log.Infof("EOF package: %v", data)
 		case ERR_HEADER:
 			err = b.c.HandleErrorPacket(data)
 			s.closeWithError(err)
