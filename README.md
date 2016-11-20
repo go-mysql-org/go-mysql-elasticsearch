@@ -131,7 +131,6 @@ Although there are some other MySQL rivers for Elasticsearch, like [elasticsearc
 
 + Filtering table field support, only fields in filter config will be synced.
 + Statistic.
-+ Docker
 
 ## Feedback
 
