@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -124,13 +125,13 @@ type BulkResponse struct {
 }
 
 type BulkResponseItem struct {
-	Index   string `json:"_index"`
-	Type    string `json:"_type"`
-	ID      string `json:"_id"`
-	Version int    `json:"_version"`
-	Status  int    `json:"status"`
+	Index   string          `json:"_index"`
+	Type    string          `json:"_type"`
+	ID      string          `json:"_id"`
+	Version int             `json:"_version"`
+	Status  int             `json:"status"`
 	Error   json.RawMessage `json:"error"`
-	Found   bool   `json:"found"`
+	Found   bool            `json:"found"`
 }
 
 func (c *Client) Do(method string, url string, body map[string]interface{}) (*Response, error) {
@@ -151,15 +152,21 @@ func (c *Client) Do(method string, url string, body map[string]interface{}) (*Re
 		return nil, errors.Trace(err)
 	}
 
+	defer resp.Body.Close()
+
 	ret := new(Response)
 	ret.Code = resp.StatusCode
 
-	if resp.ContentLength > 0 {
-		d := json.NewDecoder(resp.Body)
-		err = d.Decode(&ret.ResponseItem)
+	if resp.ContentLength == 0 {
+		return ret, err
 	}
 
-	resp.Body.Close()
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, &ret.ResponseItem)
 
 	return ret, err
 }

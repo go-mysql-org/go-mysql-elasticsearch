@@ -23,6 +23,7 @@ const (
 	TYPE_DATE                 // date
 	TYPE_TIME                 // time
 	TYPE_BIT                  // bit
+	TYPE_JSON                 // json
 )
 
 type TableColumn struct {
@@ -90,6 +91,8 @@ func (ta *Table) AddColumn(name string, columnType string, extra string) {
 		ta.Columns[index].Type = TYPE_DATE
 	} else if strings.HasPrefix(columnType, "bit") {
 		ta.Columns[index].Type = TYPE_BIT
+	} else if strings.HasPrefix(columnType, "json") {
+		ta.Columns[index].Type = TYPE_JSON
 	} else {
 		ta.Columns[index].Type = TYPE_STRING
 	}
@@ -159,7 +162,7 @@ func NewTable(conn mysql.Executer, schema string, name string) (*Table, error) {
 }
 
 func (ta *Table) fetchColumns(conn mysql.Executer) error {
-	r, err := conn.Execute(fmt.Sprintf("describe %s.%s", ta.Schema, ta.Name))
+	r, err := conn.Execute(fmt.Sprintf("describe `%s`.`%s`", ta.Schema, ta.Name))
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -176,7 +179,7 @@ func (ta *Table) fetchColumns(conn mysql.Executer) error {
 }
 
 func (ta *Table) fetchIndexes(conn mysql.Executer) error {
-	r, err := conn.Execute(fmt.Sprintf("show index from %s.%s", ta.Schema, ta.Name))
+	r, err := conn.Execute(fmt.Sprintf("show index from `%s`.`%s`", ta.Schema, ta.Name))
 	if err != nil {
 		return errors.Trace(err)
 	}
