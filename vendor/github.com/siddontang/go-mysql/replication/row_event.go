@@ -156,7 +156,8 @@ func (e *TableMapEvent) decodeMeta(data []byte) error {
 		case MYSQL_TYPE_BLOB,
 			MYSQL_TYPE_DOUBLE,
 			MYSQL_TYPE_FLOAT,
-			MYSQL_TYPE_GEOMETRY:
+			MYSQL_TYPE_GEOMETRY,
+			MYSQL_TYPE_JSON:
 			e.ColumnMeta[i] = uint16(data[pos])
 			pos++
 		case MYSQL_TYPE_TIME2,
@@ -264,7 +265,7 @@ func (e *RowsEvent) Decode(data []byte) error {
 	// ... repeat rows until event-end
 	defer func() {
 		if r := recover(); r != nil {
-			log.Fatalf("parse rows event panic %v, data %q, parsed rows %#v, table map %#v", r, data, e, e.Table)
+			log.Fatalf("parse rows event panic %v, data %q, parsed rows %#v, table map %#v\n%s", r, data, e, e.Table, Pstack())
 		}
 	}()
 
@@ -326,7 +327,7 @@ func (e *RowsEvent) decodeRows(data []byte, table *TableMapEvent, bitmap []byte)
 		row[i], n, err = e.decodeValue(data[pos:], table.ColumnType[i], table.ColumnMeta[i])
 
 		if err != nil {
-			return 0, nil
+			return 0, err
 		}
 		pos += n
 	}
@@ -481,6 +482,11 @@ func (e *RowsEvent) decodeValue(data []byte, tp byte, meta uint16) (v interface{
 		v, n = decodeString(data, length)
 	case MYSQL_TYPE_STRING:
 		v, n = decodeString(data, length)
+	case MYSQL_TYPE_JSON:
+		// Refer https://github.com/shyiko/mysql-binlog-connector-java/blob/8f9132ee773317e00313204beeae8ddcaa43c1b4/src/main/java/com/github/shyiko/mysql/binlog/event/deserialization/AbstractRowsEventDataDeserializer.java#L344
+		length = int(binary.LittleEndian.Uint32(data[0:]))
+		n = length + int(meta)
+		v, err = decodeJsonBinary(data[meta:n])
 	default:
 		err = fmt.Errorf("unsupport type %d in binlog and don't know how to handle", tp)
 	}
@@ -655,8 +661,7 @@ func decodeDatetime2(data []byte, dec uint16) (string, int, error) {
 		tmp = -tmp
 	}
 
-	//ingore second part, no precision now
-	//var secPart int64 = tmp % (1 << 24)
+	var secPart int64 = tmp % (1 << 24)
 	ymdhms := tmp >> 24
 
 	ymd := ymdhms >> 17
@@ -671,6 +676,9 @@ func decodeDatetime2(data []byte, dec uint16) (string, int, error) {
 	minute := int((hms >> 6) % (1 << 6))
 	hour := int((hms >> 12))
 
+	if secPart != 0 {
+		return fmt.Sprintf("%04d-%02d-%02d %02d:%02d:%02d.%06d", year, month, day, hour, minute, second, secPart), n, nil
+	}
 	return fmt.Sprintf("%04d-%02d-%02d %02d:%02d:%02d", year, month, day, hour, minute, second), n, nil
 }
 
@@ -744,15 +752,16 @@ func decodeTime2(data []byte, dec uint16) (string, int, error) {
 		sign = "-"
 	}
 
-	//ingore second part, no precision now
-	//var secPart int64 = tmp % (1 << 24)
-
 	hms = tmp >> 24
 
 	hour := (hms >> 12) % (1 << 10) /* 10 bits starting at 12th */
 	minute := (hms >> 6) % (1 << 6) /* 6 bits starting at 6th   */
 	second := hms % (1 << 6)        /* 6 bits starting at 0th   */
-	// 	secondPart := tmp % (1 << 24)
+	secPart := tmp % (1 << 24)
+
+	if secPart != 0 {
+		return fmt.Sprintf("%s%02d:%02d:%02d.%06d", sign, hour, minute, second, secPart), n, nil
+	}
 
 	return fmt.Sprintf("%s%02d:%02d:%02d", sign, hour, minute, second), n, nil
 }
