@@ -159,14 +159,14 @@ func (c *Client) Do(method string, url string, body map[string]interface{}) (*Re
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	if len(data) > 0 {
 		err = json.Unmarshal(data, &ret.ResponseItem)
 	}
 
-	return ret, err
+	return ret, errors.Trace(err)
 }
 
 func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error) {
@@ -195,14 +195,14 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	if len(data) > 0 {
 		err = json.Unmarshal(data, &ret)
 	}
 
-	return ret, err
+	return ret, errors.Trace(err)
 }
 
 func (c *Client) CreateMapping(index string, docType string, mapping map[string]interface{}) error {
