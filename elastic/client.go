@@ -157,16 +157,14 @@ func (c *Client) Do(method string, url string, body map[string]interface{}) (*Re
 	ret := new(Response)
 	ret.Code = resp.StatusCode
 
-	if resp.ContentLength == 0 {
-		return ret, err
-	}
-
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	err = json.Unmarshal(data, &ret.ResponseItem)
+	if len(data) > 0 {
+		err = json.Unmarshal(data, &ret.ResponseItem)
+	}
 
 	return ret, err
 }
@@ -190,15 +188,19 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 		return nil, errors.Trace(err)
 	}
 
+	defer resp.Body.Close()
+
 	ret := new(BulkResponse)
 	ret.Code = resp.StatusCode
 
-	if resp.ContentLength > 0 {
-		d := json.NewDecoder(resp.Body)
-		err = d.Decode(&ret)
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
 	}
 
-	resp.Body.Close()
+	if len(data) > 0 {
+		err = json.Unmarshal(data, &ret)
+	}
 
 	return ret, err
 }
