@@ -22,7 +22,7 @@ type Rule struct {
 	// MySQL table information
 	TableInfo *schema.Table
 
-	//only fields in fileter will be sync , default sync all fields
+	//only mysql fields in fileter will be sync , default sync all fields
 	Fileter []string `toml:"filter"`
 }
 
