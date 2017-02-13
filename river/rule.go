@@ -21,6 +21,9 @@ type Rule struct {
 
 	// MySQL table information
 	TableInfo *schema.Table
+
+	//only fields in fileter will be sync , default sync all fields
+	Fileter []string `toml:"filter"`
 }
 
 func newDefaultRule(schema string, table string) *Rule {
