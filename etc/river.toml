@@ -38,7 +38,8 @@ schema = "test"
 table = "test_river"
 index = "river"
 type = "river"
-
+# only MySQL field in filter will be synced
+filter=["title","tags"]
     # title is MySQL test_river field name, es_title is the customized name in Elasticsearch
     [rule.field]
     # This will map column title to elastic search my_title
