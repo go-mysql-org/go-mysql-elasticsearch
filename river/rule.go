@@ -55,11 +55,11 @@ func (r *Rule) prepare() error {
 }
 
 func (r *Rule) CheckFilter(field string) bool {
-	if rule.Fileter == nil {
+	if r.Fileter == nil {
 		return true
 	}
 
-	for _, f := range rule.Fileter {
+	for _, f := range r.Fileter {
 		if f == field {
 			return true
 		}
