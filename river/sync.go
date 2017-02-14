@@ -225,7 +225,7 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 	req.Action = elastic.ActionIndex
 
 	for i, c := range rule.TableInfo.Columns {
-		if !CheckFilter(rule, c.Name) {
+		if !rule.CheckFilter(c.Name) {
 			continue
 		}
 		mapped := false
@@ -251,19 +251,6 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 	}
 }
 
-func CheckFilter(rule *Rule, field string) bool {
-	if rule.Fileter == nil {
-		return true
-	}
-
-	for _, f := range rule.Fileter {
-		if f == field {
-			return true
-		}
-	}
-	return false
-}
-
 func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 	beforeValues []interface{}, afterValues []interface{}) {
 	req.Data = make(map[string]interface{}, len(beforeValues))
@@ -273,7 +260,7 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 
 	for i, c := range rule.TableInfo.Columns {
 		mapped := false
-		if !CheckFilter(rule, c.Name) {
+		if !rule.CheckFilter(c.Name) {
 			continue
 		}
 		if reflect.DeepEqual(beforeValues[i], afterValues[i]) {
