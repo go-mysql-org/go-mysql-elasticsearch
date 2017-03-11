@@ -52,8 +52,6 @@ By default, go-mysql-elasticsearch will use MySQL table name as the Elasticserac
 e.g, if a table named blog, the default index and type in Elasticserach are both named blog, if the table field named title,
 the default field name is also named title.
 
-In addition, one-to-many join ( [parent-child relationship](https://www.elastic.co/guide/en/elasticsearch/guide/current/parent-child.html) in Elasticsearch ) is supported. Simply specify the field name for `parent` property.
-
 Rule can let you change this name mapping. Rule format in config file is below:
 
 ```
@@ -64,7 +62,7 @@ index = "t"
 type = "t"
 parent = "parent_id"
 
-    [[rule.fields]]
+    [rule.field]
     mysql = "title"
     elastic = "my_title"
 ```
@@ -81,7 +79,6 @@ schema = "test"
 table = "t1"
 index = "t"
 type = "t"
-parent = "parent_id"
 
     [rule.field]
     // This will map column title to elastic search my_title
@@ -118,6 +115,21 @@ type = "river"
 
 At the above example, if you have 1024 sub tables, all tables will be synced into Elasticsearch with index "river" and type "river".
 
+## Parent-Child Relationship
+
+One-to-many join ( [parent-child relationship](https://www.elastic.co/guide/en/elasticsearch/guide/current/parent-child.html) in Elasticsearch ) is supported. Simply specify the field name for `parent` property.
+
+```
+[[rule]]
+schema = "test"
+table = "t1"
+index = "t"
+type = "t"
+parent = "parent_id"
+```
+
+Note: you should [setup relationship](https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-parent-field.html) with creating the mapping manually.
+
 ## Why not other rivers?
 
 Although there are some other MySQL rivers for Elasticsearch, like [elasticsearch-river-jdbc](https://github.com/jprante/elasticsearch-river-jdbc), [elasticsearch-river-mysql](https://github.com/scharron/elasticsearch-river-mysql), I still want to build a new one with Go, why?
@@ -129,7 +141,6 @@ Although there are some other MySQL rivers for Elasticsearch, like [elasticsearc
 
 ## Todo
 
-+ Filtering table field support, only fields in filter config will be synced.
 + Statistic.
 
 ## Donate
