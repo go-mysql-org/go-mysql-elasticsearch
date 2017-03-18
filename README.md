@@ -130,6 +130,23 @@ parent = "parent_id"
 
 Note: you should [setup relationship](https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-parent-field.html) with creating the mapping manually.
 
+## Filter fields
+
+You can use `filter` to sync specified fields, like:
+
+```
+[[rule]]
+schema = "test"
+table = "tfilter"
+index = "test"
+type = "tfilter"
+
+# Only sync following columns
+filter = ["id", "name"]
+```
+
+In the above example, we will only sync MySQL table tfiler's columns `id` and `name` to Elasticsearch. 
+
 ## Why not other rivers?
 
 Although there are some other MySQL rivers for Elasticsearch, like [elasticsearch-river-jdbc](https://github.com/jprante/elasticsearch-river-jdbc), [elasticsearch-river-mysql](https://github.com/scharron/elasticsearch-river-mysql), I still want to build a new one with Go, why?
