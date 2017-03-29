@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/client"
@@ -177,7 +178,7 @@ func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
 }
 
 func (s *riverTestSuite) testWaitSyncDone(c *C) {
-	err := s.r.canal.CatchMasterPos(10)
+	err := s.r.canal.CatchMasterPos(10 * time.Second)
 	c.Assert(err, IsNil)
 }
 
