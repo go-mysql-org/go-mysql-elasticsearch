@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	. "gopkg.in/check.v1"
 )
@@ -117,7 +118,7 @@ func (s *riverTestSuite) TestRiverWithParent(c *C) {
 	s.testElasticExtraExists(c, "1", "1", true)
 
 	s.testExecute(c, "DELETE FROM test_river_extra WHERE id = ?", 1)
-	err := river.canal.CatchMasterPos(1)
+	err := river.canal.CatchMasterPos(3 * time.Second)
 	c.Assert(err, IsNil)
 
 	s.testElasticExtraExists(c, "1", "1", false)
