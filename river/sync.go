@@ -325,19 +325,41 @@ func (r *River) getParentID(rule *Rule, row []interface{}, columnName string) (s
 }
 
 func (r *River) doBulk(reqs []*elastic.BulkRequest) error {
+	flag := true
+	var err error
 	if len(reqs) == 0 {
 		return nil
 	}
-
-	if resp, err := r.es.Bulk(reqs); err != nil {
-		log.Errorf("sync docs err %v after binlog %s", err, r.canal.SyncedPosition())
-		return errors.Trace(err)
-	} else if resp.Errors {
-		for i := 0; i < len(resp.Items); i++ {
-			for action, item := range resp.Items[i] {
-				if len(item.Error) > 0 {
-					log.Errorf("%s index: %s, type: %s, id: %s, status: %d, error: %s",
-						action, item.Index, item.Type, item.ID, item.Status, item.Error)
+	if len(reqs) == 1{
+		switch reqs[0].Action {
+		case "index":
+			err = r.es.Update(reqs[0].Index, reqs[0].Type, reqs[0].ID, reqs[0].Data)
+		case "delete":
+			err = r.es.Delete(reqs[0].Index, reqs[0].Type, reqs[0].ID)
+		case "update":
+			err = r.es.Update(reqs[0].Index, reqs[0].Type, reqs[0].ID, reqs[0].Data)
+		default:
+			flag = false
+			err = nil
+		}
+		if flag {
+			if err != nil {
+				log.Errorf("sync docs err %v after binlog %s", err, r.canal.SyncedPosition())
+				return errors.Trace(err)
+			}
+			return nil
+		}
+	} else if len(reqs) > 1 || (!flag){
+		if resp, err := r.es.Bulk(reqs); err != nil {
+			log.Errorf("sync docs err %v after binlog %s", err, r.canal.SyncedPosition())
+			return errors.Trace(err)
+		} else if resp.Errors {
+			for i := 0; i < len(resp.Items); i++ {
+				for action, item := range resp.Items[i] {
+					if len(item.Error) > 0 {
+						log.Errorf("%s index: %s, type: %s, id: %s, status: %d, error: %s",
+							action, item.Index, item.Type, item.ID, item.Status, item.Error)
+					}
 				}
 			}
 		}
