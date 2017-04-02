@@ -28,6 +28,8 @@ type River struct {
 	es *elastic.Client
 
 	st *stat
+
+	master *masterInfo
 }
 
 func NewRiver(c *Config) (*River, error) {
@@ -40,6 +42,10 @@ func NewRiver(c *Config) (*River, error) {
 	r.rules = make(map[string]*Rule)
 
 	var err error
+	if r.master, err = loadMasterInfo(c.DataDir); err != nil {
+		return nil, errors.Trace(err)
+	}
+
 	if err = r.newCanal(); err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -71,7 +77,6 @@ func (r *River) newCanal() error {
 	cfg.User = r.c.MyUser
 	cfg.Password = r.c.MyPassword
 	cfg.Flavor = r.c.Flavor
-	cfg.DataDir = r.c.DataDir
 
 	cfg.ServerID = r.c.ServerID
 	cfg.Dump.ExecutionPath = r.c.DumpExec
@@ -105,7 +110,7 @@ func (r *River) prepareCanal() error {
 		r.canal.AddDumpDatabases(keys...)
 	}
 
-	r.canal.RegRowsEventHandler(&rowsEventHandler{r})
+	r.canal.SetEventHandler(&eventHandler{r})
 
 	return nil
 }
@@ -235,7 +240,8 @@ func ruleKey(schema string, table string) string {
 }
 
 func (r *River) Run() error {
-	if err := r.canal.Start(); err != nil {
+	pos := r.master.Position()
+	if err := r.canal.StartFrom(pos); err != nil {
 		log.Errorf("start canal err %v", err)
 		return errors.Trace(err)
 	}
@@ -248,6 +254,8 @@ func (r *River) Close() {
 	close(r.quit)
 
 	r.canal.Close()
+
+	r.master.Close()
 
 	r.wg.Wait()
 }

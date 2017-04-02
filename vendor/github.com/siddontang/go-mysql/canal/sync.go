@@ -18,7 +18,7 @@ var (
 )
 
 func (c *Canal) startSyncBinlog() error {
-	pos := mysql.Position{c.master.Name, c.master.Position}
+	pos := c.master.Position()
 
 	log.Infof("start sync binlog at %v", pos)
 
@@ -28,9 +28,8 @@ func (c *Canal) startSyncBinlog() error {
 	}
 
 	timeout := time.Second
-	forceSavePos := false
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(c.ctx, 2*time.Second)
 		ev, err := s.GetEvent(ctx)
 		cancel()
 
@@ -45,10 +44,9 @@ func (c *Canal) startSyncBinlog() error {
 
 		timeout = time.Second
 
+		curPos := pos.Pos
 		//next binlog pos
 		pos.Pos = ev.Header.LogPos
-
-		forceSavePos = false
 
 		// We only save position with RotateEvent and XIDEvent.
 		// For RowsEvent, we can't save the position until meeting XIDEvent
@@ -58,20 +56,25 @@ func (c *Canal) startSyncBinlog() error {
 		case *replication.RotateEvent:
 			pos.Name = string(e.NextLogName)
 			pos.Pos = uint32(e.Position)
-			// r.ev <- pos
-			forceSavePos = true
-			log.Infof("rotate binlog to %v", pos)
+			log.Infof("rotate binlog to %s", pos)
+
+			if err = c.eventHandler.OnRotate(c.ctx, e); err != nil {
+				return errors.Trace(err)
+			}
 		case *replication.RowsEvent:
 			// we only focus row based event
 			err = c.handleRowsEvent(ev)
 			if err != nil && errors.Cause(err) != schema.ErrTableNotExist {
 				// We can ignore table not exist error
-				log.Errorf("handle rows event error %v", err)
+				log.Errorf("handle rows event at (%s, %d) error %v", pos.Name, curPos, err)
 				return errors.Trace(err)
 			}
 			continue
 		case *replication.XIDEvent:
 			// try to save the position later
+			if err := c.eventHandler.OnXID(c.ctx, pos); err != nil {
+				return errors.Trace(err)
+			}
 		case *replication.QueryEvent:
 			// handle alert table query
 			if mb := expAlterTable.FindSubmatch(e.Query); mb != nil {
@@ -80,7 +83,9 @@ func (c *Canal) startSyncBinlog() error {
 				}
 				c.ClearTableCache(mb[1], mb[2])
 				log.Infof("table structure changed, clear table cache: %s.%s\n", mb[1], mb[2])
-				forceSavePos = true
+				if err = c.eventHandler.OnDDL(c.ctx, pos, e); err != nil {
+					return errors.Trace(err)
+				}
 			} else {
 				// skip others
 				continue
@@ -89,8 +94,7 @@ func (c *Canal) startSyncBinlog() error {
 			continue
 		}
 
-		c.master.Update(pos.Name, pos.Pos)
-		c.master.Save(forceSavePos)
+		c.master.Update(pos)
 	}
 
 	return nil
@@ -119,7 +123,7 @@ func (c *Canal) handleRowsEvent(e *replication.BinlogEvent) error {
 		return errors.Errorf("%s not supported now", e.Header.EventType)
 	}
 	events := newRowsEvent(t, action, ev.Rows)
-	return c.travelRowsEventHandler(events)
+	return c.eventHandler.OnRow(c.ctx, events)
 }
 
 func (c *Canal) WaitUntilPos(pos mysql.Position, timeout time.Duration) error {
@@ -129,7 +133,7 @@ func (c *Canal) WaitUntilPos(pos mysql.Position, timeout time.Duration) error {
 		case <-timer.C:
 			return errors.Errorf("wait position %v too long > %s", pos, timeout)
 		default:
-			curPos := c.master.Pos()
+			curPos := c.master.Position()
 			if curPos.Compare(pos) >= 0 {
 				return nil
 			} else {

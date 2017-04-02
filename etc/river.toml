@@ -7,8 +7,10 @@ my_pass = ""
 # Elasticsearch address
 es_addr = "127.0.0.1:9200"
 
-# Path to store data, like master.info, and dump MySQL data 
-data_dir = "./var"
+# Path to store data, like master.info, if not set or empty,
+# we must use this to support breakpoint resume syncing. 
+# TODO: support other storage, like etcd. 
+data_dir = ""
 
 # Inner Http status address
 stat_addr = "127.0.0.1:12800"

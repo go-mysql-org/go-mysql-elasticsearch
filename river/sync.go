@@ -10,7 +10,10 @@ import (
 	"github.com/ngaut/log"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/canal"
+	"github.com/siddontang/go-mysql/mysql"
+	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go-mysql/schema"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -23,11 +26,28 @@ const (
 	fieldTypeList = "list"
 )
 
-type rowsEventHandler struct {
+type eventHandler struct {
 	r *River
 }
 
-func (h *rowsEventHandler) Do(e *canal.RowsEvent) error {
+func (h *eventHandler) OnRotate(_ context.Context, e *replication.RotateEvent) error {
+	pos := mysql.Position{
+		string(e.NextLogName),
+		uint32(e.Position),
+	}
+
+	return h.r.master.Save(pos)
+}
+
+func (h *eventHandler) OnDDL(_ context.Context, nextPos mysql.Position, _ *replication.QueryEvent) error {
+	return h.r.master.Save(nextPos)
+}
+
+func (h *eventHandler) OnXID(_ context.Context, nextPos mysql.Position) error {
+	return h.r.master.Save(nextPos)
+}
+
+func (h *eventHandler) OnRow(_ context.Context, e *canal.RowsEvent) error {
 	rule, ok := h.r.rules[ruleKey(e.Table.Schema, e.Table.Name)]
 	if !ok {
 		return nil
@@ -50,16 +70,11 @@ func (h *rowsEventHandler) Do(e *canal.RowsEvent) error {
 		return errors.Errorf("make %s ES request err %v", e.Action, err)
 	}
 
-	if err := h.r.doBulk(reqs); err != nil {
-		log.Errorf("do ES bulks err %v, stop", err)
-		return canal.ErrHandleInterrupted
-	}
-
-	return nil
+	return h.r.doBulk(reqs)
 }
 
-func (h *rowsEventHandler) String() string {
-	return "ESRiverRowsEventHandler"
+func (h *eventHandler) String() string {
+	return "ESRiverEventHandler"
 }
 
 // for insert and delete
