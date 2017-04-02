@@ -1,41 +1,32 @@
 package canal
 
 import (
-	"github.com/juju/errors"
-	"github.com/ngaut/log"
 	"github.com/siddontang/go-mysql/mysql"
+	"github.com/siddontang/go-mysql/replication"
+	"golang.org/x/net/context"
 )
 
-var (
-	ErrHandleInterrupted = errors.New("do handler error, interrupted")
-)
-
-type RowsEventHandler interface {
-	// Handle RowsEvent, if return ErrHandleInterrupted, canal will
-	// stop the sync
-	Do(e *RowsEvent) error
+type EventHandler interface {
+	OnRotate(ctx context.Context, roateEvent *replication.RotateEvent) error
+	OnDDL(ctx context.Context, nextPos mysql.Position, queryEvent *replication.QueryEvent) error
+	OnRow(ctx context.Context, e *RowsEvent) error
+	OnXID(ctx context.Context, nextPos mysql.Position) error
 	String() string
 }
 
-func (c *Canal) RegRowsEventHandler(h RowsEventHandler) {
-	c.rsLock.Lock()
-	c.rsHandlers = append(c.rsHandlers, h)
-	c.rsLock.Unlock()
+type DummyEventHandler struct {
 }
 
-func (c *Canal) travelRowsEventHandler(e *RowsEvent) error {
-	c.rsLock.Lock()
-	defer c.rsLock.Unlock()
-
-	var err error
-	for _, h := range c.rsHandlers {
-		if err = h.Do(e); err != nil && !mysql.ErrorEqual(err, ErrHandleInterrupted) {
-			log.Errorf("handle %v err: %v", h, err)
-		} else if mysql.ErrorEqual(err, ErrHandleInterrupted) {
-			log.Errorf("handle %v err, interrupted", h)
-			return ErrHandleInterrupted
-		}
-
-	}
+func (h *DummyEventHandler) OnRotate(context.Context, *replication.RotateEvent) error { return nil }
+func (h *DummyEventHandler) OnDDL(context.Context, mysql.Position, *replication.QueryEvent) error {
 	return nil
+}
+func (h *DummyEventHandler) OnRow(context.Context, *RowsEvent) error     { return nil }
+func (h *DummyEventHandler) OnXID(context.Context, mysql.Position) error { return nil }
+func (h *DummyEventHandler) String() string                              { return "DummyEventHandler" }
+
+// `SetEventHandler` registers the sync handler, you must register your
+// own handler before starting Canal.
+func (c *Canal) SetEventHandler(h EventHandler) {
+	c.eventHandler = h
 }
