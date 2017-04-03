@@ -67,6 +67,8 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 	cfg.DumpExec = "mysqldump"
 
 	cfg.StatAddr = "127.0.0.1:12800"
+	cfg.BulkSize = 1
+	cfg.FlushBulkTime = TomlDuration{3 * time.Millisecond}
 
 	os.RemoveAll(cfg.DataDir)
 
@@ -177,17 +179,29 @@ func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
 	return r
 }
 
-func (s *riverTestSuite) testWaitSyncDone(c *C) {
-	err := s.r.canal.CatchMasterPos(10 * time.Second)
+func testWaitSyncDone(c *C, r *River) {
+	<-r.canal.WaitDumpDone()
+
+	err := r.canal.CatchMasterPos(10 * time.Second)
 	c.Assert(err, IsNil)
+
+	for i := 0; i < 1000; i++ {
+		if len(r.syncCh) == 0 {
+			return
+		}
+
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	c.Fatalf("wait 1s but still have %d items to be synced", len(r.syncCh))
 }
 
 func (s *riverTestSuite) TestRiver(c *C) {
 	s.testPrepareData(c)
 
-	go s.r.Run()
+	s.r.Start()
 
-	<-s.r.canal.WaitDumpDone()
+	testWaitSyncDone(c, s.r)
 
 	var r *elastic.Response
 	r = s.testElasticGet(c, "1")
@@ -219,7 +233,7 @@ func (s *riverTestSuite) TestRiver(c *C) {
 		s.testExecute(c, fmt.Sprintf("UPDATE %s SET title = ? WHERE id = ?", table), "hello", 5+i)
 	}
 
-	s.testWaitSyncDone(c)
+	testWaitSyncDone(c, s.r)
 
 	r = s.testElasticGet(c, "1")
 	c.Assert(r.Found, Equals, false)
