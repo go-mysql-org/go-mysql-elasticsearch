@@ -82,8 +82,14 @@ func main() {
 		return
 	}
 
-	r.Run()
+	r.Start()
 
-	<-sc
+	select {
+	case n := <-sc:
+		log.Infof("receive signal %v, closing", n)
+	case <-r.Ctx().Done():
+		log.Infof("context is done with %v, closing", r.Ctx().Err())
+	}
+
 	r.Close()
 }
