@@ -35,6 +35,8 @@ type BinlogSyncerConfig struct {
 	User string
 	// Password is for MySQL password.
 	Password string
+    // Character set for Mysql client
+    Charset string
 
 	// Localhost is local hostname if register salve.
 	// If not set, use os.Hostname() instead.
@@ -137,7 +139,7 @@ func (b *BinlogSyncer) registerSlave() error {
 
 	log.Infof("register slave for master server %s:%d", b.cfg.Host, b.cfg.Port)
 	var err error
-	b.c, err = client.Connect(fmt.Sprintf("%s:%d", b.cfg.Host, b.cfg.Port), b.cfg.User, b.cfg.Password, "", func(c *client.Conn) {
+	b.c, err = client.Connect(fmt.Sprintf("%s:%d", b.cfg.Host, b.cfg.Port), b.cfg.User, b.cfg.Password, b.cfg.Charset, "", func(c *client.Conn) {
 		c.TLSConfig = b.cfg.TLSConfig
 	})
 	if err != nil {

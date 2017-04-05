@@ -31,7 +31,7 @@ type Config struct {
 	Addr     string `toml:"addr"`
 	User     string `toml:"user"`
 	Password string `toml:"password"`
-
+    Charset string `toml:"charset"`
 	ServerID uint32 `toml:"server_id"`
 	Flavor   string `toml:"flavor"`
 
@@ -64,7 +64,7 @@ func NewDefaultConfig() *Config {
 	c.Addr = "127.0.0.1:3306"
 	c.User = "root"
 	c.Password = ""
-
+    c.Charset = ""
 	rand.Seed(time.Now().Unix())
 	c.ServerID = uint32(rand.Intn(1000)) + 1001
 

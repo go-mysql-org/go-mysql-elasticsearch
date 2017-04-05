@@ -18,7 +18,7 @@ type Dumper struct {
 	Addr     string
 	User     string
 	Password string
-
+    Charset string
 	// Will override Databases
 	Tables  []string
 	TableDB string
@@ -30,7 +30,7 @@ type Dumper struct {
 	ErrOut io.Writer
 }
 
-func NewDumper(executionPath string, addr string, user string, password string) (*Dumper, error) {
+func NewDumper(executionPath string, addr string, user string, password string, charset string) (*Dumper, error) {
 	if len(executionPath) == 0 {
 		return nil, nil
 	}
@@ -45,6 +45,7 @@ func NewDumper(executionPath string, addr string, user string, password string) 
 	d.Addr = addr
 	d.User = user
 	d.Password = password
+    d.Charset = charset
 	d.Tables = make([]string, 0, 16)
 	d.Databases = make([]string, 0, 16)
 	d.IgnoreTables = make(map[string][]string)
@@ -96,7 +97,7 @@ func (d *Dumper) Dump(w io.Writer) error {
 
 	args = append(args, fmt.Sprintf("--user=%s", d.User))
 	args = append(args, fmt.Sprintf("--password=%s", d.Password))
-
+    args = append(args, fmt.Sprintf("--default-character-set=%s", d.Charset))
 	args = append(args, "--master-data")
 	args = append(args, "--single-transaction")
 	args = append(args, "--skip-lock-tables")

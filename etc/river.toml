@@ -3,6 +3,7 @@
 my_addr = "127.0.0.1:3306"
 my_user = "root"
 my_pass = ""
+my_charset = "utf8"
 
 # Elasticsearch address
 es_addr = "127.0.0.1:9200"

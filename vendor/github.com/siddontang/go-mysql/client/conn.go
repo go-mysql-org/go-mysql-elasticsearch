@@ -41,7 +41,7 @@ func getNetProto(addr string) string {
 
 // Connect to a MySQL server, addr can be ip:port, or a unix socket domain like /var/sock.
 // Accepts a series of configuration functions as a variadic argument.
-func Connect(addr string, user string, password string, dbName string, options ...func(*Conn)) (*Conn, error) {
+func Connect(addr string, user string, password string, dbName string, charset string, options ...func(*Conn)) (*Conn, error) {
 	proto := getNetProto(addr)
 
 	c := new(Conn)
@@ -57,8 +57,7 @@ func Connect(addr string, user string, password string, dbName string, options .
 	c.password = password
 	c.db = dbName
 
-	//use default charset here, utf-8
-	c.charset = DEFAULT_CHARSET
+	c.charset = charset
 
 	// Apply configuration functions.
 	for i := range options {

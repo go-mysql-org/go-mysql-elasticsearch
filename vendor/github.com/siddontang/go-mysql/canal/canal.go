@@ -82,7 +82,7 @@ func (c *Canal) prepareDumper() error {
 	}
 
 	if c.dumper, err = dump.NewDumper(dumpPath,
-		c.cfg.Addr, c.cfg.User, c.cfg.Password); err != nil {
+		c.cfg.Addr, c.cfg.User, c.cfg.Password, c.cfg.Charset); err != nil {
 		return errors.Trace(err)
 	}
 
@@ -281,7 +281,7 @@ func (c *Canal) Execute(cmd string, args ...interface{}) (rr *mysql.Result, err 
 	retryNum := 3
 	for i := 0; i < retryNum; i++ {
 		if c.conn == nil {
-			c.conn, err = client.Connect(c.cfg.Addr, c.cfg.User, c.cfg.Password, "")
+			c.conn, err = client.Connect(c.cfg.Addr, c.cfg.User, c.cfg.Password, "", "")
 			if err != nil {
 				return nil, errors.Trace(err)
 			}
