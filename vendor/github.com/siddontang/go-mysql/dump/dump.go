@@ -97,7 +97,11 @@ func (d *Dumper) Dump(w io.Writer) error {
 
 	args = append(args, fmt.Sprintf("--user=%s", d.User))
 	args = append(args, fmt.Sprintf("--password=%s", d.Password))
-    args = append(args, fmt.Sprintf("--default-character-set=%s", d.Charset))
+
+	if d.Charset != "" {
+		args = append(args, fmt.Sprintf("--default-character-set=%s", d.Charset))
+	}
+
 	args = append(args, "--master-data")
 	args = append(args, "--single-transaction")
 	args = append(args, "--skip-lock-tables")

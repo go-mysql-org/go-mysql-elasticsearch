@@ -37,7 +37,7 @@ func (s *riverTestSuite) setupExtra(c *C) (r *River) {
 	cfg.MyAddr = *my_addr
 	cfg.MyUser = "root"
 	cfg.MyPassword = ""
-    cfg.MyCharset = "utf8"
+	cfg.MyCharset = "utf8"
 	cfg.ESAddr = *es_addr
 
 	cfg.ServerID = 1001
