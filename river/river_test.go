@@ -28,7 +28,7 @@ var _ = Suite(&riverTestSuite{})
 
 func (s *riverTestSuite) SetUpSuite(c *C) {
 	var err error
-	s.c, err = client.Connect(*my_addr, "root", "", "test")
+	s.c, err = client.Connect(*my_addr, "root", "", "test", "utf8")
 	c.Assert(err, IsNil)
 
 	s.testExecute(c, "SET SESSION binlog_format = 'ROW'")
@@ -58,6 +58,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 	cfg.MyAddr = *my_addr
 	cfg.MyUser = "root"
 	cfg.MyPassword = ""
+	cfg.MyCharset = "utf8"
 	cfg.ESAddr = *es_addr
 
 	cfg.ServerID = 1001
