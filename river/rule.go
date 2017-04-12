@@ -34,7 +34,6 @@ func newDefaultRule(schema string, table string) *Rule {
 	r.Table = table
 	r.Index = table
 	r.Type = table
-	r.Id = id
 	r.FieldMapping = make(map[string]string)
 
 	return r

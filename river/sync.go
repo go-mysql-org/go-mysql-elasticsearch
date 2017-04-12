@@ -397,7 +397,7 @@ func (r *River) getDocID(rule *Rule, row []interface{}) (string, error) {
 	} else {
 		id = make([]interface{}, 0, len(rule.Id))
 		for _, column := range rule.Id {
-			value, err := canal.GetFieldValue(rule.TableInfo, column, row)
+			value, err := canal.GetColumnValue(rule.TableInfo, column, row)
 			if err != nil {
 				return "", err
 			}
