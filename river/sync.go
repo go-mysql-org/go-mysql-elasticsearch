@@ -391,7 +391,7 @@ func (r *River) getDocID(rule *Rule, row []interface{}) (string, error) {
   		ids []interface{}
   		err error 
 	)
-	if rule.Id == nil {
+	if rule.ID == nil {
 		ids, err = canal.GetPKValues(rule.TableInfo, row)
 		if err != nil {
 			return "", err
