@@ -7,7 +7,9 @@ my_pass = ""
 # Elasticsearch address
 es_addr = "127.0.0.1:9200"
 
-# Path to store data, like master.info, and dump MySQL data 
+# Path to store data, like master.info, if not set or empty,
+# we must use this to support breakpoint resume syncing. 
+# TODO: support other storage, like etcd. 
 data_dir = "./var"
 
 # Inner Http status address
@@ -22,6 +24,12 @@ flavor = "mysql"
 # mysqldump execution path
 # if not set or empty, ignore mysqldump.
 mysqldump = "mysqldump"
+
+# minimal items to be inserted in one bulk
+bulk_size = 128
+
+# force flush the pending requests if we don't have enough items >= bulk_size
+flush_bulk_time = "200ms"
 
 # MySQL data source
 [[source]]
