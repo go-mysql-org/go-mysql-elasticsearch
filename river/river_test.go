@@ -81,6 +81,14 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 			Type:         "river",
 			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
 		},
+		
+		&Rule{Schema: "test",
+			Table:        "test_river",
+			Index:        "river",
+			Type:         "river",
+			ID:           []string{"id", "title"},
+			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
+		},
 
 		&Rule{Schema: "test",
 			Table:        "test_river_[0-9]{4}",
@@ -128,6 +136,7 @@ table = "test_river"
 index = "river"
 type = "river"
 parent = "pid"
+id = ["id", "title"]
 
     [rule.field]
     title = "es_title"
