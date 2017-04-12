@@ -384,27 +384,40 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 	}
 }
 
-// Get primary keys in one row and format them into a string
-// PK must not be nil
+// If Id in toml file is none, get primary keys in one row and format them into a string, and PK must not be nil
+// Else get the Id's column in one row and format them into a string
 func (r *River) getDocID(rule *Rule, row []interface{}) (string, error) {
-	pks, err := canal.GetPKValues(rule.TableInfo, row)
-	if err != nil {
-		return "", err
+	var id []interface{}
+	var err error
+	if rule.Id == nil {
+		id, err = canal.GetPKValues(rule.TableInfo, row)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		id = make([]interface{}, 0, len(rule.Id))
+		for _, column := range rule.Id {
+			value, err := canal.GetFieldValue(rule.TableInfo, column, row)
+			if err != nil {
+				return "", err
+			}
+			id = append(id, value)
+		}
 	}
 
 	var buf bytes.Buffer
 
-	sep := ""
-	for i, value := range pks {
-		if value == nil {
-			return "", errors.Errorf("The %ds PK value is nil", i)
-		}
+    sep := ""
+    for i, value := range id {
+        if value == nil {
+            return "", errors.Errorf("The %ds Id or PK value is nil", i)
+        }
 
-		buf.WriteString(fmt.Sprintf("%s%v", sep, value))
-		sep = ":"
-	}
+        buf.WriteString(fmt.Sprintf("%s%v", sep, value))
+        sep = ":"
+    }
 
-	return buf.String(), nil
+    return buf.String(), nil
 }
 
 func (r *River) getParentID(rule *Rule, row []interface{}, columnName string) (string, error) {
@@ -417,41 +430,19 @@ func (r *River) getParentID(rule *Rule, row []interface{}, columnName string) (s
 }
 
 func (r *River) doBulk(reqs []*elastic.BulkRequest) error {
-	flag := true
-	var err error
 	if len(reqs) == 0 {
 		return nil
 	}
-	if len(reqs) == 1{
-		switch reqs[0].Action {
-		case "index":
-			err = r.es.Update(reqs[0].Index, reqs[0].Type, reqs[0].ID, reqs[0].Data)
-		case "delete":
-			err = r.es.Delete(reqs[0].Index, reqs[0].Type, reqs[0].ID)
-		case "update":
-			err = r.es.Update(reqs[0].Index, reqs[0].Type, reqs[0].ID, reqs[0].Data)
-		default:
-			flag = false
-			err = nil
-		}
-		if flag {
-			if err != nil {
-				log.Errorf("sync docs err %v after binlog %s", err, r.canal.SyncedPosition())
-				return errors.Trace(err)
-			}
-			return nil
-		}
-	} else if len(reqs) > 1 || (!flag){
-		if resp, err := r.es.Bulk(reqs); err != nil {
-			log.Errorf("sync docs err %v after binlog %s", err, r.canal.SyncedPosition())
-			return errors.Trace(err)
-		} else if resp.Errors {
-			for i := 0; i < len(resp.Items); i++ {
-				for action, item := range resp.Items[i] {
-					if len(item.Error) > 0 {
-						log.Errorf("%s index: %s, type: %s, id: %s, status: %d, error: %s",
-							action, item.Index, item.Type, item.ID, item.Status, item.Error)
-					}
+
+	if resp, err := r.es.Bulk(reqs); err != nil {
+		log.Errorf("sync docs err %v after binlog %s", err, r.canal.SyncedPosition())
+		return errors.Trace(err)
+	} else if resp.Errors {
+		for i := 0; i < len(resp.Items); i++ {
+			for action, item := range resp.Items[i] {
+				if len(item.Error) > 0 {
+					log.Errorf("%s index: %s, type: %s, id: %s, status: %d, error: %s",
+						action, item.Index, item.Type, item.ID, item.Status, item.Error)
 				}
 			}
 		}

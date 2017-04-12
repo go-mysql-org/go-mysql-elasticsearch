@@ -58,6 +58,8 @@ schema = "test"
 table = "t"
 index = "test"
 type = "t"
+# Default will use the mysql's primary key as es's id, if set id will use the id's column value as id
+id = ["id", "tags"]
 
 # Wildcard table rule, the wildcard table must be in source tables 
 # All tables which match the wildcard format will be synced to ES index `test` and type `t`.
@@ -113,3 +115,4 @@ type = "tfilter"
 
 # Only sync following columns
 filter = ["id", "name"]
+

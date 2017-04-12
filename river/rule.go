@@ -13,6 +13,7 @@ type Rule struct {
 	Index  string `toml:"index"`
 	Type   string `toml:"type"`
 	Parent string `toml:"parent"`
+	Id []string `toml:"id"`
 
 	// Default, a MySQL table field name is mapped to Elasticsearch field name.
 	// Sometimes, you want to use different name, e.g, the MySQL file name is title,
@@ -33,6 +34,7 @@ func newDefaultRule(schema string, table string) *Rule {
 	r.Table = table
 	r.Index = table
 	r.Type = table
+	r.Id = id
 	r.FieldMapping = make(map[string]string)
 
 	return r
