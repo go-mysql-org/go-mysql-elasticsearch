@@ -79,13 +79,6 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 			Table:        "test_river",
 			Index:        "river",
 			Type:         "river",
-			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
-		},
-		
-		&Rule{Schema: "test",
-			Table:        "test_river",
-			Index:        "river",
-			Type:         "river",
 			ID:           []string{"id", "title"},
 			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
 		},
@@ -130,16 +123,6 @@ schema = "test"
 
 tables = ["test_river", "test_river_[0-9]{4}"]
 
-[[rule]]
-schema = "test"
-table = "test_river"
-index = "river"
-type = "river"
-parent = "pid"
-
-    [rule.field]
-    title = "es_title"
-    mylist = "es_mylist,list"
 
 [[rule]]
 schema = "test"
@@ -224,13 +207,13 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	testWaitSyncDone(c, s.r)
 
 	var r *elastic.Response
-	r = s.testElasticGet(c, "1")
+	r = s.testElasticGet(c, "1:first")
 	c.Assert(r.Found, Equals, true)
 	c.Assert(r.Source["tenum"], Equals, "e1")
 	c.Assert(r.Source["tset"], Equals, "a,b")
 	
-	r = s.testElasticGet(c, "1:first")
-	c.Assert(r.Found, Equals, true)
+	r = s.testElasticGet(c, "1")
+	c.Assert(r.Found, Equals, false)
 
 	r = s.testElasticGet(c, "100")
 	c.Assert(r.Found, Equals, false)
