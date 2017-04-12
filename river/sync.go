@@ -407,17 +407,17 @@ func (r *River) getDocID(rule *Rule, row []interface{}) (string, error) {
 
 	var buf bytes.Buffer
 
-    sep := ""
-    for i, value := range id {
-        if value == nil {
-            return "", errors.Errorf("The %ds Id or PK value is nil", i)
-        }
+	sep := ""
+	for i, value := range id {
+		if value == nil {
+			return "", errors.Errorf("The %ds Id or PK value is nil", i)
+		}
 
-        buf.WriteString(fmt.Sprintf("%s%v", sep, value))
-        sep = ":"
-    }
+		buf.WriteString(fmt.Sprintf("%s%v", sep, value))
+		sep = ":"
+	}
 
-    return buf.String(), nil
+	return buf.String(), nil
 }
 
 func (r *River) getParentID(rule *Rule, row []interface{}, columnName string) (string, error) {
