@@ -136,6 +136,17 @@ table = "test_river"
 index = "river"
 type = "river"
 parent = "pid"
+
+    [rule.field]
+    title = "es_title"
+    mylist = "es_mylist,list"
+
+[[rule]]
+schema = "test"
+table = "test_river"
+index = "river"
+type = "river"
+parent = "pid"
 id = ["id", "title"]
 
     [rule.field]
@@ -217,6 +228,9 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	c.Assert(r.Found, Equals, true)
 	c.Assert(r.Source["tenum"], Equals, "e1")
 	c.Assert(r.Source["tset"], Equals, "a,b")
+	
+	r = s.testElasticGet(c, "1:first")
+	c.Assert(r.Found, Equals, true)
 
 	r = s.testElasticGet(c, "100")
 	c.Assert(r.Found, Equals, false)
