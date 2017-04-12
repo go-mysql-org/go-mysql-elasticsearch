@@ -221,13 +221,11 @@ func (r *River) prepareRule() error {
 		if rule.TableInfo, err = r.canal.GetTable(rule.Schema, rule.Table); err != nil {
 			return errors.Trace(err)
 		}
-<<<<<<< HEAD
-=======
 
 		if len(rule.TableInfo.PKColumns) == 0 {
 			return errors.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
 		}
->>>>>>> 4f21bc6ec1c64547ee05c698941ae8158b785760
+
 	}
 
 	return nil
