@@ -47,6 +47,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	s.testExecute(c, "DROP TABLE IF EXISTS test_river")
 	s.testExecute(c, fmt.Sprintf(schema, "test_river"))
+	s.testExecute(c, fmt.Sprintf(schema, "test_for_id"))
 
 	for i := 0; i < 10; i++ {
 		table := fmt.Sprintf("test_river_%04d", i)
@@ -83,9 +84,9 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 		},
 		
 		&Rule{Schema: "test",
-			Table:        "test_river",
+			Table:        "test_for_id",
 			Index:        "river",
-			Type:         "river_id",
+			Type:         "river",
 			ID:           []string{"id", "title"},
 			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
 		},
@@ -141,17 +142,18 @@ parent = "pid"
     title = "es_title"
     mylist = "es_mylist,list"
 
+
 [[rule]]
 schema = "test"
-table = "test_river"
+table = "test_for_id"
 index = "river"
-type = "river_id"
+type = "river"
 parent = "pid"
 id = ["id", "title"]
-
     [rule.field]
     title = "es_title"
     mylist = "es_mylist,list"
+
 
 [[rule]]
 schema = "test"
@@ -182,15 +184,17 @@ func (s *riverTestSuite) testPrepareData(c *C) {
 	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 2, "second", "hello mysql 2", "e2", "b,c")
 	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 3, "third", "hello elaticsearch 3", "e3", "c")
 	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tbit) VALUES (?, ?, ?, ?, ?, ?)", 4, "fouth", "hello go-mysql-elasticserach 4", "e1", "a,b,c", 0)
-
+	s.testExecute(c, "INSERT INTO test_for_id (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 1, "first", "hello go 1", "e1", "a,b")
+	
 	for i := 0; i < 10; i++ {
 		table := fmt.Sprintf("test_river_%04d", i)
 		s.testExecute(c, fmt.Sprintf("INSERT INTO %s (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", table), 5+i, "abc", "hello", "e1", "a,b,c")
 	}
 }
 
-func (s *riverTestSuite) testElasticGet(c *C, docType string, id string) *elastic.Response {
+func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
 	index := "river"
+	docType := "river"
 
 	r, err := s.r.es.Get(index, docType, id)
 	c.Assert(err, IsNil)
@@ -223,24 +227,19 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	testWaitSyncDone(c, s.r)
 
 	var r *elastic.Response
-	r = s.testElasticGet(c, "river", "1")
+	r = s.testElasticGet(c, "1")
 	c.Assert(r.Found, Equals, true)
 	c.Assert(r.Source["tenum"], Equals, "e1")
 	c.Assert(r.Source["tset"], Equals, "a,b")
 	
-	r = s.testElasticGet(c, "river_id", "1:first")
+	r = s.testElasticGet(c, "1:first")
 	c.Assert(r.Found, Equals, true)
-	c.Assert(r.Source["tenum"], Equals, "e1")
-	c.Assert(r.Source["tset"], Equals, "a,b")
 	
-	r = s.testElasticGet(c, "river_id", "1:second")
-	c.Assert(r.Found, Equals, false)
-	
-	r = s.testElasticGet(c, "river", "100")
+	r = s.testElasticGet(c, "100")
 	c.Assert(r.Found, Equals, false)
 
 	for i := 0; i < 10; i++ {
-		r = s.testElasticGet(c, "river", fmt.Sprintf("%d", 5+i))
+		r = s.testElasticGet(c, fmt.Sprintf("%d", 5+i))
 		c.Assert(r.Found, Equals, true)
 		c.Assert(r.Source["es_title"], Equals, "abc")
 	}
@@ -262,10 +261,10 @@ func (s *riverTestSuite) TestRiver(c *C) {
 
 	testWaitSyncDone(c, s.r)
 
-	r = s.testElasticGet(c, "river", "1")
+	r = s.testElasticGet(c, "1")
 	c.Assert(r.Found, Equals, false)
 
-	r = s.testElasticGet(c, "river", "2")
+	r = s.testElasticGet(c, "2")
 	c.Assert(r.Found, Equals, true)
 	c.Assert(r.Source["es_title"], Equals, "second 2")
 	c.Assert(r.Source["tenum"], Equals, "e3")
@@ -273,21 +272,21 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	c.Assert(r.Source["es_mylist"], DeepEquals, []interface{}{"a", "b", "c"})
 	c.Assert(r.Source["tbit"], Equals, float64(1))
 
-	r = s.testElasticGet(c, "river", "4")
+	r = s.testElasticGet(c, "4")
 	c.Assert(r.Found, Equals, true)
 	c.Assert(r.Source["tenum"], Equals, "")
 	c.Assert(r.Source["tset"], Equals, "a,b,c")
 	c.Assert(r.Source["tbit"], Equals, float64(0))
 
-	r = s.testElasticGet(c, "river", "3")
+	r = s.testElasticGet(c, "3")
 	c.Assert(r.Found, Equals, false)
 
-	r = s.testElasticGet(c, "river", "30")
+	r = s.testElasticGet(c, "30")
 	c.Assert(r.Found, Equals, true)
 	c.Assert(r.Source["es_title"], Equals, "second 30")
 
 	for i := 0; i < 10; i++ {
-		r = s.testElasticGet(c, "river", fmt.Sprintf("%d", 5+i))
+		r = s.testElasticGet(c, fmt.Sprintf("%d", 5+i))
 		c.Assert(r.Found, Equals, true)
 		c.Assert(r.Source["es_title"], Equals, "hello")
 	}
