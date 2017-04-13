@@ -129,7 +129,7 @@ data_dir = "./var"
 [[source]]
 schema = "test"
 
-tables = ["test_river", "test_river_[0-9]{4}"]
+tables = ["test_river", "test_river_[0-9]{4}", "test_for_id"]
 
 [[rule]]
 schema = "test"
@@ -171,7 +171,7 @@ type = "river"
 	c.Assert(err, IsNil)
 	c.Assert(cfg.Sources, HasLen, 1)
 	c.Assert(cfg.Sources[0].Tables, HasLen, 3)
-	c.Assert(cfg.Rules, HasLen, 2)
+	c.Assert(cfg.Rules, HasLen, 3)
 }
 
 func (s *riverTestSuite) testExecute(c *C, query string, args ...interface{}) {
