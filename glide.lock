@@ -16,7 +16,7 @@ imports:
   - ioutil2
   - sync2
 - name: github.com/siddontang/go-mysql
-  version: d6523c91375d1d31abfbc9e5dce3a70e15dbb2bb
+  version: dd8c4fc06b092a5563dcd68431c857dd21a36d0a
   subpackages:
   - canal
   - client
