@@ -73,7 +73,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	os.RemoveAll(cfg.DataDir)
 
-	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river", "test_river_[0-9]{4}"}}}
+	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river", "test_river_[0-9]{4}", "test_for_id"}}}
 
 	cfg.Rules = []*Rule{
 		&Rule{Schema: "test",
@@ -170,7 +170,7 @@ type = "river"
 	cfg, err := NewConfig(str)
 	c.Assert(err, IsNil)
 	c.Assert(cfg.Sources, HasLen, 1)
-	c.Assert(cfg.Sources[0].Tables, HasLen, 2)
+	c.Assert(cfg.Sources[0].Tables, HasLen, 3)
 	c.Assert(cfg.Rules, HasLen, 2)
 }
 
