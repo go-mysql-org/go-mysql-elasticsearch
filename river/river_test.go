@@ -47,6 +47,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	s.testExecute(c, "DROP TABLE IF EXISTS test_river")
 	s.testExecute(c, fmt.Sprintf(schema, "test_river"))
+	s.testExecute(c, fmt.Sprintf(schema, "test_for_id"))
 
 	for i := 0; i < 10; i++ {
 		table := fmt.Sprintf("test_river_%04d", i)
@@ -72,13 +73,21 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	os.RemoveAll(cfg.DataDir)
 
-	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river", "test_river_[0-9]{4}"}}}
+	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river", "test_river_[0-9]{4}", "test_for_id"}}}
 
 	cfg.Rules = []*Rule{
 		&Rule{Schema: "test",
 			Table:        "test_river",
 			Index:        "river",
 			Type:         "river",
+			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
+		},
+		
+		&Rule{Schema: "test",
+			Table:        "test_for_id",
+			Index:        "river",
+			Type:         "river",
+			ID:           []string{"id", "title"},
 			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
 		},
 
@@ -120,7 +129,7 @@ data_dir = "./var"
 [[source]]
 schema = "test"
 
-tables = ["test_river", "test_river_[0-9]{4}"]
+tables = ["test_river", "test_river_[0-9]{4}", "test_for_id"]
 
 [[rule]]
 schema = "test"
@@ -132,6 +141,19 @@ parent = "pid"
     [rule.field]
     title = "es_title"
     mylist = "es_mylist,list"
+
+
+[[rule]]
+schema = "test"
+table = "test_for_id"
+index = "river"
+type = "river"
+parent = "pid"
+id = ["id", "title"]
+    [rule.field]
+    title = "es_title"
+    mylist = "es_mylist,list"
+
 
 [[rule]]
 schema = "test"
@@ -148,8 +170,8 @@ type = "river"
 	cfg, err := NewConfig(str)
 	c.Assert(err, IsNil)
 	c.Assert(cfg.Sources, HasLen, 1)
-	c.Assert(cfg.Sources[0].Tables, HasLen, 2)
-	c.Assert(cfg.Rules, HasLen, 2)
+	c.Assert(cfg.Sources[0].Tables, HasLen, 3)
+	c.Assert(cfg.Rules, HasLen, 3)
 }
 
 func (s *riverTestSuite) testExecute(c *C, query string, args ...interface{}) {
@@ -162,7 +184,8 @@ func (s *riverTestSuite) testPrepareData(c *C) {
 	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 2, "second", "hello mysql 2", "e2", "b,c")
 	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 3, "third", "hello elaticsearch 3", "e3", "c")
 	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tbit) VALUES (?, ?, ?, ?, ?, ?)", 4, "fouth", "hello go-mysql-elasticserach 4", "e1", "a,b,c", 0)
-
+	s.testExecute(c, "INSERT INTO test_for_id (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 1, "first", "hello go 1", "e1", "a,b")
+	
 	for i := 0; i < 10; i++ {
 		table := fmt.Sprintf("test_river_%04d", i)
 		s.testExecute(c, fmt.Sprintf("INSERT INTO %s (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", table), 5+i, "abc", "hello", "e1", "a,b,c")
@@ -208,7 +231,10 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	c.Assert(r.Found, Equals, true)
 	c.Assert(r.Source["tenum"], Equals, "e1")
 	c.Assert(r.Source["tset"], Equals, "a,b")
-
+	
+	r = s.testElasticGet(c, "1:first")
+	c.Assert(r.Found, Equals, true)
+	
 	r = s.testElasticGet(c, "100")
 	c.Assert(r.Found, Equals, false)
 

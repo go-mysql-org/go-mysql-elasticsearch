@@ -384,20 +384,35 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 	}
 }
 
-// Get primary keys in one row and format them into a string
-// PK must not be nil
+// If id in toml file is none, get primary keys in one row and format them into a string, and PK must not be nil
+// Else get the ID's column in one row and format them into a string
 func (r *River) getDocID(rule *Rule, row []interface{}) (string, error) {
-	pks, err := canal.GetPKValues(rule.TableInfo, row)
-	if err != nil {
-		return "", err
+	var (
+  		ids []interface{}
+  		err error 
+	)
+	if rule.ID == nil {
+		ids, err = canal.GetPKValues(rule.TableInfo, row)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		ids = make([]interface{}, 0, len(rule.ID))
+		for _, column := range rule.ID {
+			value, err := canal.GetColumnValue(rule.TableInfo, column, row)
+			if err != nil {
+				return "", err
+			}
+			ids = append(ids, value)
+		}
 	}
 
 	var buf bytes.Buffer
 
 	sep := ""
-	for i, value := range pks {
+	for i, value := range ids {
 		if value == nil {
-			return "", errors.Errorf("The %ds PK value is nil", i)
+			return "", errors.Errorf("The %ds id or PK value is nil", i)
 		}
 
 		buf.WriteString(fmt.Sprintf("%s%v", sep, value))

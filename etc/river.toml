@@ -113,3 +113,23 @@ type = "tfilter"
 
 # Only sync following columns
 filter = ["id", "name"]
+
+# id rule
+#
+# desc tid_[0-9]{4};
+# +----------+--------------+------+-----+---------+-------+
+# | Field    | Type         | Null | Key | Default | Extra |
+# +----------+--------------+------+-----+---------+-------+
+# | id       | int(11)      | NO   | PRI | NULL    |       |
+# | tag      | varchar(256) | YES  |     | NULL    |       |
+# | desc     | varchar(256) | YES  |     | NULL    |       |
+# +----------+--------------+------+-----+---------+-------+
+#
+[[rule]]
+schema = "test"
+table = "tid_[0-9]{4}"
+index = "test"
+type = "t"
+# The es doc's id will be `id`:`tag`
+# It is useful for merge muliple table into one type while theses tables have same PK 
+id = ["id", "tag"]

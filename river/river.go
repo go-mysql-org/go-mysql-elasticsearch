@@ -212,6 +212,7 @@ func (r *River) prepareRule() error {
 					rr.Index = rule.Index
 					rr.Type = rule.Type
 					rr.Parent = rule.Parent
+					rr.ID = rule.ID
 					rr.FieldMapping = rule.FieldMapping
 				}
 			} else {
