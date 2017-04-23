@@ -16,6 +16,7 @@ var configFile = flag.String("config", "./etc/river.toml", "go-mysql-elasticsear
 var my_addr = flag.String("my_addr", "", "MySQL addr")
 var my_user = flag.String("my_user", "", "MySQL user")
 var my_pass = flag.String("my_pass", "", "MySQL password")
+var my_charset = flag.String("my_charset", "", "MySQL character set")
 var es_addr = flag.String("es_addr", "", "Elasticsearch addr")
 var data_dir = flag.String("data_dir", "", "path for go-mysql-elasticsearch to save data")
 var server_id = flag.Int("server_id", 0, "MySQL server id, as a pseudo slave")
@@ -54,6 +55,10 @@ func main() {
 
 	if len(*my_pass) > 0 {
 		cfg.MyPassword = *my_pass
+	}
+
+	if len(*my_charset) > 0 {
+		cfg.MyCharset = *my_charset
 	}
 
 	if *server_id > 0 {
