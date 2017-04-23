@@ -79,6 +79,7 @@ func (r *River) newCanal() error {
 	cfg.Addr = r.c.MyAddr
 	cfg.User = r.c.MyUser
 	cfg.Password = r.c.MyPassword
+    cfg.Charset = r.c.MyCharset
 	cfg.Flavor = r.c.Flavor
 
 	cfg.ServerID = r.c.ServerID
