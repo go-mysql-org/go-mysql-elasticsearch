@@ -15,8 +15,8 @@ imports:
   - hack
   - ioutil2
   - sync2
-- name: github.com/siddontang/go-mysql
-  version: dd8c4fc06b092a5563dcd68431c857dd21a36d0a
+- name: github.com/WangXiangUSTC/go-mysql
+  version: fddc32296e000e7d07ca11c49225f8ae4c03f915
   subpackages:
   - canal
   - client
