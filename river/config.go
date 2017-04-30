@@ -17,6 +17,7 @@ type Config struct {
 	MyAddr     string `toml:"my_addr"`
 	MyUser     string `toml:"my_user"`
 	MyPassword string `toml:"my_pass"`
+	MyCharset  string `toml:"my_charset"`
 
 	ESAddr string `toml:"es_addr"`
 
