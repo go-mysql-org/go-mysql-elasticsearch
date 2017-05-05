@@ -59,6 +59,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 	cfg.MyAddr = *my_addr
 	cfg.MyUser = "root"
 	cfg.MyPassword = ""
+	cfg.MyCharset = "utf8"
 	cfg.ESAddr = *es_addr
 
 	cfg.ServerID = 1001
@@ -121,7 +122,7 @@ func (s *riverTestSuite) TestConfig(c *C) {
 my_addr = "127.0.0.1:3306"
 my_user = "root"
 my_pass = ""
-
+my_charset = "utf8"
 es_addr = "127.0.0.1:9200"
 
 data_dir = "./var"
