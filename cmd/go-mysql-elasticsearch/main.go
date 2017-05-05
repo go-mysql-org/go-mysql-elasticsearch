@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/juju/errors"
+	"github.com/ngaut/log"
 	"github.com/siddontang/go-mysql-elasticsearch/river"
 )
 
@@ -20,10 +21,13 @@ var data_dir = flag.String("data_dir", "", "path for go-mysql-elasticsearch to s
 var server_id = flag.Int("server_id", 0, "MySQL server id, as a pseudo slave")
 var flavor = flag.String("flavor", "", "flavor: mysql or mariadb")
 var execution = flag.String("exec", "", "mysqldump execution path")
+var logLevel = flag.String("log_level", "info", "log level")
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
+
+	log.SetLevelByString(*logLevel)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
@@ -78,8 +82,14 @@ func main() {
 		return
 	}
 
-	r.Run()
+	r.Start()
 
-	<-sc
+	select {
+	case n := <-sc:
+		log.Infof("receive signal %v, closing", n)
+	case <-r.Ctx().Done():
+		log.Infof("context is done with %v, closing", r.Ctx().Err())
+	}
+
 	r.Close()
 }

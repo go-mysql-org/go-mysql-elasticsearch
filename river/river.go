@@ -7,9 +7,9 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/ngaut/log"
-	"github.com/siddontang/go-mysql/canal"
-
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
+	"github.com/siddontang/go-mysql/canal"
+	"golang.org/x/net/context"
 )
 
 // In Elasticsearch, river is a pluggable service within Elasticsearch pulling data then indexing it into Elasticsearch.
@@ -22,24 +22,33 @@ type River struct {
 
 	rules map[string]*Rule
 
-	quit chan struct{}
-	wg   sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	wg sync.WaitGroup
 
 	es *elastic.Client
 
 	st *stat
+
+	master *masterInfo
+
+	syncCh chan interface{}
 }
 
 func NewRiver(c *Config) (*River, error) {
 	r := new(River)
 
 	r.c = c
-
-	r.quit = make(chan struct{})
-
 	r.rules = make(map[string]*Rule)
+	r.syncCh = make(chan interface{}, 4096)
+	r.ctx, r.cancel = context.WithCancel(context.Background())
 
 	var err error
+	if r.master, err = loadMasterInfo(c.DataDir); err != nil {
+		return nil, errors.Trace(err)
+	}
+
 	if err = r.newCanal(); err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -70,8 +79,8 @@ func (r *River) newCanal() error {
 	cfg.Addr = r.c.MyAddr
 	cfg.User = r.c.MyUser
 	cfg.Password = r.c.MyPassword
+	cfg.Charset = r.c.MyCharset
 	cfg.Flavor = r.c.Flavor
-	cfg.DataDir = r.c.DataDir
 
 	cfg.ServerID = r.c.ServerID
 	cfg.Dump.ExecutionPath = r.c.DumpExec
@@ -105,7 +114,7 @@ func (r *River) prepareCanal() error {
 		r.canal.AddDumpDatabases(keys...)
 	}
 
-	r.canal.RegRowsEventHandler(&rowsEventHandler{r})
+	r.canal.SetEventHandler(&eventHandler{r})
 
 	return nil
 }
@@ -204,6 +213,7 @@ func (r *River) prepareRule() error {
 					rr.Index = rule.Index
 					rr.Type = rule.Type
 					rr.Parent = rule.Parent
+					rr.ID = rule.ID
 					rr.FieldMapping = rule.FieldMapping
 				}
 			} else {
@@ -235,8 +245,12 @@ func ruleKey(schema string, table string) string {
 	return fmt.Sprintf("%s:%s", schema, table)
 }
 
-func (r *River) Run() error {
-	if err := r.canal.Start(); err != nil {
+func (r *River) Start() error {
+	r.wg.Add(1)
+	go r.syncLoop()
+
+	pos := r.master.Position()
+	if err := r.canal.StartFrom(pos); err != nil {
 		log.Errorf("start canal err %v", err)
 		return errors.Trace(err)
 	}
@@ -244,11 +258,18 @@ func (r *River) Run() error {
 	return nil
 }
 
+func (r *River) Ctx() context.Context {
+	return r.ctx
+}
+
 func (r *River) Close() {
 	log.Infof("closing river")
-	close(r.quit)
+
+	r.cancel()
 
 	r.canal.Close()
+
+	r.master.Close()
 
 	r.wg.Wait()
 }

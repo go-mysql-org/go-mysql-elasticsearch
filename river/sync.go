@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/juju/errors"
 	"github.com/ngaut/log"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/canal"
+	"github.com/siddontang/go-mysql/mysql"
+	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go-mysql/schema"
 )
 
@@ -23,11 +26,37 @@ const (
 	fieldTypeList = "list"
 )
 
-type rowsEventHandler struct {
+type posSaver struct {
+	pos   mysql.Position
+	force bool
+}
+
+type eventHandler struct {
 	r *River
 }
 
-func (h *rowsEventHandler) Do(e *canal.RowsEvent) error {
+func (h *eventHandler) OnRotate(e *replication.RotateEvent) error {
+	pos := mysql.Position{
+		string(e.NextLogName),
+		uint32(e.Position),
+	}
+
+	h.r.syncCh <- posSaver{pos, true}
+
+	return h.r.ctx.Err()
+}
+
+func (h *eventHandler) OnDDL(nextPos mysql.Position, _ *replication.QueryEvent) error {
+	h.r.syncCh <- posSaver{nextPos, true}
+	return h.r.ctx.Err()
+}
+
+func (h *eventHandler) OnXID(nextPos mysql.Position) error {
+	h.r.syncCh <- posSaver{nextPos, false}
+	return h.r.ctx.Err()
+}
+
+func (h *eventHandler) OnRow(e *canal.RowsEvent) error {
 	rule, ok := h.r.rules[ruleKey(e.Table.Schema, e.Table.Name)]
 	if !ok {
 		return nil
@@ -43,23 +72,86 @@ func (h *rowsEventHandler) Do(e *canal.RowsEvent) error {
 	case canal.UpdateAction:
 		reqs, err = h.r.makeUpdateRequest(rule, e.Rows)
 	default:
-		return errors.Errorf("invalid rows action %s", e.Action)
+		err = errors.Errorf("invalid rows action %s", e.Action)
 	}
 
 	if err != nil {
-		return errors.Errorf("make %s ES request err %v", e.Action, err)
+		h.r.cancel()
+		return errors.Errorf("make %s ES request err %v, close sync", e.Action, err)
 	}
 
-	if err := h.r.doBulk(reqs); err != nil {
-		log.Errorf("do ES bulks err %v, stop", err)
-		return canal.ErrHandleInterrupted
-	}
+	h.r.syncCh <- reqs
 
-	return nil
+	return h.r.ctx.Err()
 }
 
-func (h *rowsEventHandler) String() string {
-	return "ESRiverRowsEventHandler"
+func (h *eventHandler) String() string {
+	return "ESRiverEventHandler"
+}
+
+func (r *River) syncLoop() {
+	bulkSize := r.c.BulkSize
+	if bulkSize == 0 {
+		bulkSize = 128
+	}
+
+	interval := r.c.FlushBulkTime.Duration
+	if interval == 0 {
+		interval = 200 * time.Millisecond
+	}
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	defer r.wg.Done()
+
+	lastSavedTime := time.Now()
+	reqs := make([]*elastic.BulkRequest, 0, 1024)
+
+	var pos mysql.Position
+
+	for {
+		needFlush := false
+		needSavePos := false
+
+		select {
+		case v := <-r.syncCh:
+			switch v := v.(type) {
+			case posSaver:
+				now := time.Now()
+				if v.force || now.Sub(lastSavedTime) > 3*time.Second {
+					lastSavedTime = now
+					needFlush = true
+					needSavePos = true
+					pos = v.pos
+				}
+			case []*elastic.BulkRequest:
+				reqs = append(reqs, v...)
+				needFlush = len(reqs) >= bulkSize
+			}
+		case <-ticker.C:
+			needFlush = true
+		case <-r.ctx.Done():
+			return
+		}
+
+		if needFlush {
+			// TODO: retry some times?
+			if err := r.doBulk(reqs); err != nil {
+				log.Errorf("do ES bulk err %v, close sync", err)
+				r.cancel()
+				return
+			}
+			reqs = reqs[0:0]
+		}
+
+		if needSavePos {
+			if err := r.master.Save(pos); err != nil {
+				log.Errorf("save sync position %s err %v, close sync", pos, err)
+				r.cancel()
+				return
+			}
+		}
+	}
 }
 
 // for insert and delete
@@ -292,20 +384,35 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 	}
 }
 
-// Get primary keys in one row and format them into a string
-// PK must not be nil
+// If id in toml file is none, get primary keys in one row and format them into a string, and PK must not be nil
+// Else get the ID's column in one row and format them into a string
 func (r *River) getDocID(rule *Rule, row []interface{}) (string, error) {
-	pks, err := canal.GetPKValues(rule.TableInfo, row)
-	if err != nil {
-		return "", err
+	var (
+  		ids []interface{}
+  		err error 
+	)
+	if rule.ID == nil {
+		ids, err = canal.GetPKValues(rule.TableInfo, row)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		ids = make([]interface{}, 0, len(rule.ID))
+		for _, column := range rule.ID {
+			value, err := canal.GetColumnValue(rule.TableInfo, column, row)
+			if err != nil {
+				return "", err
+			}
+			ids = append(ids, value)
+		}
 	}
 
 	var buf bytes.Buffer
 
 	sep := ""
-	for i, value := range pks {
+	for i, value := range ids {
 		if value == nil {
-			return "", errors.Errorf("The %ds PK value is nil", i)
+			return "", errors.Errorf("The %ds id or PK value is nil", i)
 		}
 
 		buf.WriteString(fmt.Sprintf("%s%v", sep, value))
