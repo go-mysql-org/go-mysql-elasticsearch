@@ -450,5 +450,5 @@ func (r *River) doBulk(reqs []*elastic.BulkRequest) error {
 		}
 	}
 
-	return nil
+	return nil 
 }
