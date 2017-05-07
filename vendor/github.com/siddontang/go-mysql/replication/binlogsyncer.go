@@ -540,6 +540,10 @@ func (b *BinlogSyncer) onStream(s *BinlogStreamer) {
 				s.closeWithError(err)
 				return
 			}
+		case EOF_HEADER:
+			// according to "http://dev.mysql.com/doc/internals/en/packet-EOF_Packet.html", EOF and OK package serve the same purpose, 
+			// to mark the end of a query execution result. So do nothing, but log the receive data.
+			log.Infof("EOF package: %v", data)
 		case ERR_HEADER:
 			err = b.c.HandleErrorPacket(data)
 			s.closeWithError(err)
