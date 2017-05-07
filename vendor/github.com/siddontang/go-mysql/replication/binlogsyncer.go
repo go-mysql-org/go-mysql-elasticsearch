@@ -40,6 +40,9 @@ type BinlogSyncerConfig struct {
 	// If not set, use os.Hostname() instead.
 	Localhost string
 
+	// Charset is for MySQL client character set
+	Charset string
+
 	// SemiSyncEnabled enables semi-sync or not.
 	SemiSyncEnabled bool
 
@@ -52,6 +55,8 @@ type BinlogSyncerConfig struct {
 	// Use replication.Time structure for timestamp and datetime.
 	// We will use Local location for timestamp and UTC location for datatime.
 	ParseTime bool
+
+	LogLevel string
 }
 
 // BinlogSyncer syncs binlog event from server.
@@ -76,6 +81,11 @@ type BinlogSyncer struct {
 
 // NewBinlogSyncer creates the BinlogSyncer with cfg.
 func NewBinlogSyncer(cfg *BinlogSyncerConfig) *BinlogSyncer {
+	if cfg.LogLevel == "" {
+		cfg.LogLevel = "info"
+	}
+	log.SetLevelByString(cfg.LogLevel)
+
 	log.Infof("create BinlogSyncer with config %v", cfg)
 
 	b := new(BinlogSyncer)
@@ -142,6 +152,9 @@ func (b *BinlogSyncer) registerSlave() error {
 	})
 	if err != nil {
 		return errors.Trace(err)
+	}
+	if len(b.cfg.Charset) != 0 {
+	    b.c.SetCharset(b.cfg.Charset)
 	}
 
 	//for mysql 5.6+, binlog has a crc32 checksum
@@ -556,7 +569,7 @@ func (b *BinlogSyncer) parseEvent(s *BinlogStreamer, data []byte) error {
 		data = data[2:]
 	}
 
-	e, err := b.parser.parse(data)
+	e, err := b.parser.Parse(data)
 	if err != nil {
 		return errors.Trace(err)
 	}

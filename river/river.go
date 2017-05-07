@@ -79,6 +79,7 @@ func (r *River) newCanal() error {
 	cfg.Addr = r.c.MyAddr
 	cfg.User = r.c.MyUser
 	cfg.Password = r.c.MyPassword
+	cfg.Charset = r.c.MyCharset
 	cfg.Flavor = r.c.Flavor
 
 	cfg.ServerID = r.c.ServerID
@@ -234,6 +235,7 @@ func (r *River) prepareRule() error {
 		if len(rule.TableInfo.PKColumns) == 0 {
 			return errors.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
 		}
+
 	}
 
 	return nil
