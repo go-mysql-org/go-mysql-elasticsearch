@@ -58,9 +58,6 @@ func (s *elasticTestSuite) TestSimple(c *C) {
 	err = s.c.Delete(index, docType, "1")
 	c.Assert(err, IsNil)
 
-	err = s.c.Delete(index, docType, "1")
-	c.Assert(err, IsNil)
-
 	exists, err = s.c.Exists(index, docType, "1")
 	c.Assert(err, IsNil)
 	c.Assert(exists, Equals, false)
