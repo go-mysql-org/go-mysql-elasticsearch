@@ -103,8 +103,8 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 	s.r, err = NewRiver(cfg)
 	c.Assert(err, IsNil)
 
-	err = s.r.es.DeleteIndex("river")
-	c.Assert(err, IsNil)
+	//err = s.r.es.DeleteIndex("river")
+	//c.Assert(err, IsNil)
 }
 
 func (s *riverTestSuite) TearDownSuite(c *C) {
