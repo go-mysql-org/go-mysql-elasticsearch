@@ -22,7 +22,7 @@ type elasticTestSuite struct {
 var _ = Suite(&elasticTestSuite{})
 
 func (s *elasticTestSuite) SetUpSuite(c *C) {
-	s.c = NewClient(fmt.Sprintf("%s:%d", *host, *port))
+	s.c = NewClient(fmt.Sprintf("%s:%d", *host, *port), "", "")
 }
 
 func (s *elasticTestSuite) TearDownSuite(c *C) {

@@ -15,14 +15,19 @@ import (
 // Because we only need some very simple usages.
 type Client struct {
 	Addr string
+	User string
+	Password string
 
 	c *http.Client
 }
 
-func NewClient(addr string) *Client {
+
+func NewClient(addr string, user string, password string) *Client {
 	c := new(Client)
 
 	c.Addr = addr
+	c.User = user
+	c.Password = password
 
 	c.c = &http.Client{}
 
@@ -134,6 +139,24 @@ type BulkResponseItem struct {
 	Found   bool            `json:"found"`
 }
 
+func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http.Response, error) {
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	if len(c.User) > 0 && len(c.Password) > 0 {
+		req.SetBasicAuth(c.User, c.Password)
+	}
+	resp, err := c.c.Do(req)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+    if resp.StatusCode > 400 {
+        return nil, errors.New(resp.Status)
+    }
+    return resp, err
+}
+
 func (c *Client) Do(method string, url string, body map[string]interface{}) (*Response, error) {
 	bodyData, err := json.Marshal(body)
 	if err != nil {
@@ -142,12 +165,7 @@ func (c *Client) Do(method string, url string, body map[string]interface{}) (*Re
 
 	buf := bytes.NewBuffer(bodyData)
 
-	req, err := http.NewRequest(method, url, buf)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	resp, err := c.c.Do(req)
+	resp, err := c.DoRequest(method, url, buf)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -178,12 +196,7 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 		}
 	}
 
-	req, err := http.NewRequest("POST", url, &buf)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	resp, err := c.c.Do(req)
+	resp, err := c.DoRequest("POST", url, &buf)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}

@@ -66,7 +66,8 @@ func NewRiver(c *Config) (*River, error) {
 		return nil, errors.Trace(err)
 	}
 
-	r.es = elastic.NewClient(r.c.ESAddr)
+	r.es = elastic.NewClient(r.c.ESAddr, r.c.ESUser, r.c.ESPassword)
+
 
 	r.st = &stat{r: r}
 	go r.st.Run(r.c.StatAddr)
