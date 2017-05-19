@@ -22,9 +22,9 @@ type Client struct {
 }
 
 type ClientConfig struct {
-    Addr string
-    User string
-    Password string
+	Addr string
+	User string
+	Password string
 }
 
 
