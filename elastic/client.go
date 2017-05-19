@@ -157,10 +157,10 @@ func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-    if resp.StatusCode > 400 {
-        return nil, errors.New(resp.Status)
-    }
-    return resp, err
+	if resp.StatusCode > 400 {
+		return nil, errors.New(resp.Status)
+    	}
+    	return resp, err
 }
 
 func (c *Client) Do(method string, url string, body map[string]interface{}) (*Response, error) {
