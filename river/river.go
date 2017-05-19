@@ -66,10 +66,10 @@ func NewRiver(c *Config) (*River, error) {
 		return nil, errors.Trace(err)
 	}
 
-    cfg := new(elastic.ClientConfig)
-    cfg.Addr = r.c.ESAddr
-    cfg.User = r.c.ESUser
-    cfg.Password = r.c.ESPassword
+	cfg := new(elastic.ClientConfig)
+	cfg.Addr = r.c.ESAddr
+	cfg.User = r.c.ESUser
+	cfg.Password = r.c.ESPassword
 	r.es = elastic.NewClient(cfg)
 
 
