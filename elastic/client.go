@@ -21,13 +21,19 @@ type Client struct {
 	c *http.Client
 }
 
+type ClientConfig struct {
+    Addr string
+    User string
+    Password string
+}
 
-func NewClient(addr string, user string, password string) *Client {
+
+func NewClient(conf *ClientConfig) *Client {
 	c := new(Client)
 
-	c.Addr = addr
-	c.User = user
-	c.Password = password
+	c.Addr = conf.Addr
+	c.User = conf.User
+	c.Password = conf.Password
 
 	c.c = &http.Client{}
 
