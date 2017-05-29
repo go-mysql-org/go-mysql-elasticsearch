@@ -63,8 +63,8 @@ func (s *elasticTestSuite) TestSimple(c *C) {
 	c.Assert(err, IsNil)
 
 	exists, err = s.c.Exists(index, docType, "1")
-	c.Assert(err, IsNil)
-	c.Assert(exists, Equals, false)
+	c.Assert(err, NotNil)
+	c.Assert(exists, IsNil)
 
 	items := make([]*BulkRequest, 10)
 
