@@ -199,7 +199,11 @@ func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
 	docType := "river"
 
 	r, err := s.r.es.Get(index, docType, id)
-	c.Assert(err, IsNil) 
+	if err != nil {
+		r := new(Response)
+		r.Found = false
+		return r
+	}
 
 	return r
 }
