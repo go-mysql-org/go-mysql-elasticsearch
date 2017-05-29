@@ -97,12 +97,11 @@ func (s *riverTestSuite) testElasticExtraExists(c *C, id string, parent string, 
 		url.QueryEscape(parent))
 
 	r, err := s.r.es.Do("HEAD", reqUrl, nil)
-	c.Assert(err, IsNil)
 
 	if exist {
 		c.Assert(r.Code, Equals, http.StatusOK)
 	} else {
-		c.Assert(r.Code, Equals, http.StatusNotFound)
+		c.Assert(err, NotNil)
 	}
 }
 
