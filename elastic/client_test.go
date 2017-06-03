@@ -98,7 +98,16 @@ func (s *elasticTestSuite) TestSimple(c *C) {
 func (s *elasticTestSuite) TestParent(c *C) {
 	index := "dummy"
 	docType := "comment"
-
+	ParentType := "parent"
+	
+	mapping := map[string]interface{}{
+		docType: map[string]interface{}{
+			"_parent": map[string]string{"type": ParentType},
+		},
+	}
+	err:= s.c.CreateMapping(index, docType, mapping)
+	c.Assert(err, IsNil)
+	
 	items := make([]*BulkRequest, 10)
 
 	for i := 0; i < 10; i++ {
