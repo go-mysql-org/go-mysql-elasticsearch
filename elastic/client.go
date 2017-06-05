@@ -216,7 +216,7 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 
 	// index doesn't exist, create index first
 	if r.Code != http.StatusOK {
-		_, err = c.Do("POST", reqUrl, nil)
+		_, err = c.Do("PUT", reqUrl, nil)
 
 		if err != nil {
 			return errors.Trace(err)
