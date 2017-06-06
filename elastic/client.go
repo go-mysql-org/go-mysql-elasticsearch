@@ -159,8 +159,8 @@ func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http
 	}
 	if resp.StatusCode >= 300 || resp.StatusCode < 200 {
 		return nil, errors.New(resp.Status)
-    	}
-    	return resp, err
+	}
+	return resp, err
 }
 
 func (c *Client) Do(method string, url string, body map[string]interface{}) (*Response, error) {
@@ -224,26 +224,26 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 	return ret, errors.Trace(err)
 }
 
-func (c *Client) CreateMapping(index string, mapping map[string]interface{}) error {
+func (c *Client) CreateMapping(index string, docType string, mapping map[string]interface{}) error {
 	reqUrl := fmt.Sprintf("http://%s/%s", c.Addr,
 		url.QueryEscape(index))
 
 	_, err := c.Do("HEAD", reqUrl, nil)
 
-	// index doesn't exist, create index first
-	//if err != nil {
-	//	_, err = c.Do("POST", reqUrl, nil)
+	// if index doesn't exist, will get 404 not found error, create index first
+	if err != nil {
+		_, err = c.Do("PUT", reqUrl, nil)
 
-	//	if err != nil {
-	//		return errors.Trace(err)
-	//	}
-	//}
-	if err!= nil {
-		reqUrl = fmt.Sprintf("http://%s/%s", c.Addr,
-		    url.QueryEscape(index))
-
-	    _, err = c.Do("PUT", reqUrl, mapping)
+		if err != nil {
+			return errors.Trace(err)
+		}
 	}
+
+	reqUrl = fmt.Sprintf("http://%s/%s/%s/_mapping", c.Addr,
+		url.QueryEscape(index),
+		url.QueryEscape(docType))
+
+	_, err = c.Do("POST", reqUrl, mapping)
 	return errors.Trace(err)
 }
 

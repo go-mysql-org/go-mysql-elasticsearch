@@ -73,7 +73,7 @@ func (s *riverTestSuite) setupExtra(c *C) (r *River) {
 		},
 	}
 
-	r.es.CreateMapping("river", mapping)
+	r.es.CreateMapping("river", "river_extra", mapping)
 
 	return r
 }
