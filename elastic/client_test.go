@@ -57,6 +57,7 @@ func (s *elasticTestSuite) TestSimple(c *C) {
 
 	r, err := s.c.Get(index, docType, "1")
 	c.Assert(err, IsNil)
+	c.Assert(r.Code, Equals, 200)
 	c.Assert(r.ID, Equals, "1")
 
 	err = s.c.Delete(index, docType, "1")
@@ -79,6 +80,7 @@ func (s *elasticTestSuite) TestSimple(c *C) {
 
 	resp, err := s.c.IndexTypeBulk(index, docType, items)
 	c.Assert(err, IsNil)
+	c.Assert(resp.Code, Equals, 200)
 	c.Assert(resp.Errors, Equals, false)
 
 	for i := 0; i < 10; i++ {
@@ -91,6 +93,7 @@ func (s *elasticTestSuite) TestSimple(c *C) {
 
 	resp, err = s.c.IndexTypeBulk(index, docType, items)
 	c.Assert(err, IsNil)
+	c.Assert(resp.Code, Equals, 200)
 	c.Assert(resp.Errors, Equals, false)
 }
 
@@ -99,8 +102,7 @@ func (s *elasticTestSuite) TestParent(c *C) {
 	index := "dummy"
 	docType := "comment"
 	ParentType := "parent"
-
-	//"mappings": map[string]interface{}{
+  
 	mapping := map[string]interface{}{
 			docType: map[string]interface{}{
 				"_parent": map[string]string{"type": ParentType},
@@ -108,9 +110,9 @@ func (s *elasticTestSuite) TestParent(c *C) {
 	}
 	err := s.c.CreateMapping(index, docType,  mapping)
 	c.Assert(err, IsNil)
-
+	
 	items := make([]*BulkRequest, 10)
-
+	
 	for i := 0; i < 10; i++ {
 		id := fmt.Sprintf("%d", i)
 		req := new(BulkRequest)
@@ -123,16 +125,21 @@ func (s *elasticTestSuite) TestParent(c *C) {
 
 	resp, err := s.c.IndexTypeBulk(index, docType, items)
 	c.Assert(err, IsNil)
+	c.Assert(resp.Code, Equals, 200)
 	c.Assert(resp.Errors, Equals, false)
 
-	//for i := 0; i < 10; i++ {
-	//	id := fmt.Sprintf("%d", i)
-	//	req := new(BulkRequest)
-	//	req.Action = ActionDelete
-	//	req.ID = id
-	//	items[i] = req
-	//}
-	//resp, err = s.c.IndexTypeBulk(index, docType, items)
-	//c.Assert(err, IsNil)
-	//c.Assert(resp.Errors, Equals, false)
+	for i := 0; i < 10; i++ {
+		id := fmt.Sprintf("%d", i)
+		req := new(BulkRequest)
+		req.Index = index
+		req.Type = docType
+		req.Action = ActionDelete
+		req.ID = id
+		req.Parent = "1"
+		items[i] = req
+	}
+	resp, err = s.c.Bulk(items)
+	c.Assert(err, IsNil)
+	c.Assert(resp.Code, Equals, 200)
+	c.Assert(resp.Errors, Equals, false)
 }
