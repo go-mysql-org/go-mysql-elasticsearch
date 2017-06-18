@@ -154,12 +154,7 @@ func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http
 		req.SetBasicAuth(c.User, c.Password)
 	}
 	resp, err := c.c.Do(req)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	if resp.StatusCode >= 300 || resp.StatusCode < 200 {
-		return nil, errors.New(resp.Status)
-	}
+
 	return resp, err
 }
 
