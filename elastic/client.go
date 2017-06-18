@@ -223,10 +223,13 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 	reqUrl := fmt.Sprintf("http://%s/%s", c.Addr,
 		url.QueryEscape(index))
 
-	_, err := c.Do("HEAD", reqUrl, nil)
+	r, err := c.Do("HEAD", reqUrl, nil)
+	if err != nil {
+		return errors.Trace(err)
+	}
 
 	// if index doesn't exist, will get 404 not found error, create index first
-	if err != nil {
+	if r.Code != http.StatusOK {
 		_, err = c.Do("PUT", reqUrl, nil)
 
 		if err != nil {
