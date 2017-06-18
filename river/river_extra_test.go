@@ -101,7 +101,7 @@ func (s *riverTestSuite) testElasticExtraExists(c *C, id string, parent string, 
 	if exist {
 		c.Assert(r.Code, Equals, http.StatusOK)
 	} else {
-		c.Assert(err, NotNil)
+		c.Assert(r.Code, Equals, http.StatusNotFound)
 	}
 }
 
