@@ -102,7 +102,7 @@ func (s *elasticTestSuite) TestParent(c *C) {
 	index := "dummy"
 	docType := "comment"
 	ParentType := "parent"
-  
+
 	mapping := map[string]interface{}{
 			docType: map[string]interface{}{
 				"_parent": map[string]string{"type": ParentType},
