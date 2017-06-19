@@ -236,7 +236,7 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 			return errors.Trace(err)
 		}
 	} else if r.Code != http.StatusOK {
-		return errors.Trace(err)
+		return errors.New(resp.Status)
 	}
 
 	reqUrl = fmt.Sprintf("http://%s/%s/%s/_mapping", c.Addr,
