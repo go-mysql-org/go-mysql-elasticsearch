@@ -439,7 +439,7 @@ func (r *River) doBulk(reqs []*elastic.BulkRequest) error {
 	if resp, err := r.es.Bulk(reqs); err != nil {
 		log.Errorf("sync docs err %v after binlog %s", err, r.canal.SyncedPosition())
 		return errors.Trace(err)
-	} else if resp.Code >= 300 || resp.Code < 200 || resp.Errors {
+	} else if resp.Code / 100 == 2 || resp.Errors {
 		for i := 0; i < len(resp.Items); i++ {
 			for action, item := range resp.Items[i] {
 				if len(item.Error) > 0 {
