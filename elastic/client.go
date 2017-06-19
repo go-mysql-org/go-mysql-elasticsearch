@@ -228,7 +228,7 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 		return errors.Trace(err)
 	}
 
-	// if index doesn't exist, will get 404 not found error, create index first
+	// if index doesn't exist, will get 404 not found, create index first
 	if r.Code == StatusNotFound {
 		_, err = c.Do("PUT", reqUrl, nil)
 
