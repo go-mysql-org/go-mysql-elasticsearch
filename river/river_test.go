@@ -124,7 +124,8 @@ my_user = "root"
 my_pass = ""
 my_charset = "utf8"
 es_addr = "127.0.0.1:9200"
-
+es_user = ""
+es_pass = ""
 data_dir = "./var"
 
 [[source]]

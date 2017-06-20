@@ -15,14 +15,25 @@ import (
 // Because we only need some very simple usages.
 type Client struct {
 	Addr string
+	User string
+	Password string
 
 	c *http.Client
 }
 
-func NewClient(addr string) *Client {
+type ClientConfig struct {
+	Addr string
+	User string
+	Password string
+}
+
+
+func NewClient(conf *ClientConfig) *Client {
 	c := new(Client)
 
-	c.Addr = addr
+	c.Addr = conf.Addr
+	c.User = conf.User
+	c.Password = conf.Password
 
 	c.c = &http.Client{}
 
@@ -134,6 +145,19 @@ type BulkResponseItem struct {
 	Found   bool            `json:"found"`
 }
 
+func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http.Response, error) {
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	if len(c.User) > 0 && len(c.Password) > 0 {
+		req.SetBasicAuth(c.User, c.Password)
+	}
+	resp, err := c.c.Do(req)
+
+	return resp, err
+}
+
 func (c *Client) Do(method string, url string, body map[string]interface{}) (*Response, error) {
 	bodyData, err := json.Marshal(body)
 	if err != nil {
@@ -142,12 +166,7 @@ func (c *Client) Do(method string, url string, body map[string]interface{}) (*Re
 
 	buf := bytes.NewBuffer(bodyData)
 
-	req, err := http.NewRequest(method, url, buf)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	resp, err := c.c.Do(req)
+	resp, err := c.DoRequest(method, url, buf)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -178,12 +197,7 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 		}
 	}
 
-	req, err := http.NewRequest("POST", url, &buf)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	resp, err := c.c.Do(req)
+	resp, err := c.DoRequest("POST", url, &buf)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -214,13 +228,15 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 		return errors.Trace(err)
 	}
 
-	// index doesn't exist, create index first
-	if r.Code != http.StatusOK {
+	// if index doesn't exist, will get 404 not found, create index first
+	if r.Code == http.StatusNotFound {
 		_, err = c.Do("PUT", reqUrl, nil)
 
 		if err != nil {
 			return errors.Trace(err)
 		}
+	} else if r.Code != http.StatusOK {
+		return errors.Errorf("Error: %s, code: %d", http.StatusText(r.Code), r.Code)
 	}
 
 	reqUrl = fmt.Sprintf("http://%s/%s/%s/_mapping", c.Addr,

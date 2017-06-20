@@ -19,7 +19,9 @@ type Config struct {
 	MyPassword string `toml:"my_pass"`
 	MyCharset  string `toml:"my_charset"`
 
-	ESAddr string `toml:"es_addr"`
+	ESAddr     string `toml:"es_addr"`
+	ESUser     string `toml:"es_user"`
+	ESPassword string `toml:"es_pass"`
 
 	StatAddr string `toml:"stat_addr"`
 

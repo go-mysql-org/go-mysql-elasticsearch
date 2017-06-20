@@ -22,7 +22,11 @@ type elasticTestSuite struct {
 var _ = Suite(&elasticTestSuite{})
 
 func (s *elasticTestSuite) SetUpSuite(c *C) {
-	s.c = NewClient(fmt.Sprintf("%s:%d", *host, *port))
+	cfg := new(ClientConfig)
+	cfg.Addr = fmt.Sprintf("%s:%d", *host, *port)
+	cfg.User = ""
+	cfg.Password = ""
+	s.c = NewClient(cfg)
 }
 
 func (s *elasticTestSuite) TearDownSuite(c *C) {
@@ -55,9 +59,6 @@ func (s *elasticTestSuite) TestSimple(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(r.Code, Equals, 200)
 	c.Assert(r.ID, Equals, "1")
-
-	err = s.c.Delete(index, docType, "1")
-	c.Assert(err, IsNil)
 
 	err = s.c.Delete(index, docType, "1")
 	c.Assert(err, IsNil)
@@ -126,6 +127,7 @@ func (s *elasticTestSuite) TestParent(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(resp.Code, Equals, 200)
 	c.Assert(resp.Errors, Equals, false)
+
 	for i := 0; i < 10; i++ {
 		id := fmt.Sprintf("%d", i)
 		req := new(BulkRequest)
