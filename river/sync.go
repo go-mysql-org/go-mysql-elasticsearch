@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
+	"encoding/json"
 
 	"github.com/juju/errors"
 	"github.com/ngaut/log"
@@ -289,6 +290,18 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 		switch value := value.(type) {
 		case []byte:
 			return string(value[:])
+		}
+	case schema.TYPE_JSON:
+		var f interface{}
+		var err error
+		switch v := value.(type) {
+		case string:
+			err = json.Unmarshal([]byte(v), &f)
+		case []byte:
+			err = json.Unmarshal(v, &f)
+		}
+		if err == nil && f != nil {
+			return f
 		}
 	}
 
