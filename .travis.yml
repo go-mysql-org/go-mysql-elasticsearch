@@ -6,6 +6,7 @@ go:
 
 services:
   - elasticsearch
+  - mysql
 
 before_install:
   - go install -race std
@@ -25,3 +26,6 @@ before_install:
 
 script:
   - go test --race ./...
+
+before_script:
+  - bash .travis.install-mysql-5.7.sh
