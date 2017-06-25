@@ -28,7 +28,7 @@ var _ = Suite(&riverTestSuite{})
 
 func (s *riverTestSuite) SetUpSuite(c *C) {
 	var err error
-	s.c, err = client.Connect(*my_addr, "root", "", "test")
+	s.c, err = client.Connect(*my_addr, "root", "123456", "test")
 	c.Assert(err, IsNil)
 
 	s.testExecute(c, "SET SESSION binlog_format = 'ROW'")
@@ -55,7 +55,6 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 	s.testExecute(c, "DROP TABLE IF EXISTS test_river")
 	s.testExecute(c, "DROP TABLE IF EXISTS test_for_id")
 	s.testExecute(c, "DROP TABLE IF EXISTS test_for_json")
-	s.testExecute(c, "DROP TABLE IF EXISTS test_river")
 	s.testExecute(c, fmt.Sprintf(schema, "test_river"))
 	s.testExecute(c, fmt.Sprintf(schema, "test_for_id"))
 	s.testExecute(c, fmt.Sprintf(schema_json, "test_for_json"))
@@ -209,7 +208,7 @@ func (s *riverTestSuite) testPrepareData(c *C) {
 	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 3, "third", "hello elaticsearch 3", "e3", "c")
 	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tbit) VALUES (?, ?, ?, ?, ?, ?)", 4, "fouth", "hello go-mysql-elasticserach 4", "e1", "a,b,c", 0)
 	s.testExecute(c, "INSERT INTO test_for_id (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 1, "first", "hello go 1", "e1", "a,b")
-	s.testExecute(c, "INSERT INTO test_for_json (id, json) VALUES (?, ?)", 9200, "{\"first\": \"a\", \"second\": \"b\"}")
+	s.testExecute(c, "INSERT INTO test_for_json (id, info) VALUES (?, ?)", 9200, "{\"first\": \"a\", \"second\": \"b\"}")
 
 	for i := 0; i < 10; i++ {
 		table := fmt.Sprintf("test_river_%04d", i)
