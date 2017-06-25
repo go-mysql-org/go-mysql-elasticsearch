@@ -45,9 +45,20 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
             PRIMARY KEY(id)) ENGINE=INNODB;
     `
 
+	schema_json := `
+	CREATE TABLE IF NOT EXISTS %s (
+	    id INT,
+	    info JSON,
+	    PRIMARY KEY(id)) ENGINE=INNODB;
+    `
+
+	s.testExecute(c, "DROP TABLE IF EXISTS test_river")
+	s.testExecute(c, "DROP TABLE IF EXISTS test_for_id")
+	s.testExecute(c, "DROP TABLE IF EXISTS test_for_json")
 	s.testExecute(c, "DROP TABLE IF EXISTS test_river")
 	s.testExecute(c, fmt.Sprintf(schema, "test_river"))
 	s.testExecute(c, fmt.Sprintf(schema, "test_for_id"))
+	s.testExecute(c, fmt.Sprintf(schema_json, "test_for_json"))
 
 	for i := 0; i < 10; i++ {
 		table := fmt.Sprintf("test_river_%04d", i)
@@ -74,7 +85,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	os.RemoveAll(cfg.DataDir)
 
-	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river", "test_river_[0-9]{4}", "test_for_id"}}}
+	cfg.Sources = []SourceConfig{SourceConfig{Schema: "test", Tables: []string{"test_river", "test_river_[0-9]{4}", "test_for_id", "test_for_json"}}}
 
 	cfg.Rules = []*Rule{
 		&Rule{Schema: "test",
@@ -83,7 +94,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 			Type:         "river",
 			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
 		},
-		
+
 		&Rule{Schema: "test",
 			Table:        "test_for_id",
 			Index:        "river",
@@ -97,6 +108,12 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 			Index:        "river",
 			Type:         "river",
 			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
+		},
+
+		&Rule{Schema: "test",
+			Table:        "test_for_json",
+			Index:        "river",
+			Type:         "river",
 		},
 	}
 
@@ -131,7 +148,7 @@ data_dir = "./var"
 [[source]]
 schema = "test"
 
-tables = ["test_river", "test_river_[0-9]{4}", "test_for_id"]
+tables = ["test_river", "test_river_[0-9]{4}", "test_for_id", "test_for_json"]
 
 [[rule]]
 schema = "test"
@@ -167,13 +184,18 @@ type = "river"
     title = "es_title"
     mylist = "es_mylist,list"
 
+[[rule]]
+schema = "test"
+table = "test_for_json"
+index = "river"
+type = "river"
 `
 
 	cfg, err := NewConfig(str)
 	c.Assert(err, IsNil)
 	c.Assert(cfg.Sources, HasLen, 1)
-	c.Assert(cfg.Sources[0].Tables, HasLen, 3)
-	c.Assert(cfg.Rules, HasLen, 3)
+	c.Assert(cfg.Sources[0].Tables, HasLen, 4)
+	c.Assert(cfg.Rules, HasLen, 4)
 }
 
 func (s *riverTestSuite) testExecute(c *C, query string, args ...interface{}) {
@@ -187,7 +209,8 @@ func (s *riverTestSuite) testPrepareData(c *C) {
 	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 3, "third", "hello elaticsearch 3", "e3", "c")
 	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tbit) VALUES (?, ?, ?, ?, ?, ?)", 4, "fouth", "hello go-mysql-elasticserach 4", "e1", "a,b,c", 0)
 	s.testExecute(c, "INSERT INTO test_for_id (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 1, "first", "hello go 1", "e1", "a,b")
-	
+	s.testExecute(c, "INSERT INTO test_for_json (id, json) VALUES (?, ?)", 9200, "{\"first\": \"a\", \"second\": \"b\"}")
+
 	for i := 0; i < 10; i++ {
 		table := fmt.Sprintf("test_river_%04d", i)
 		s.testExecute(c, fmt.Sprintf("INSERT INTO %s (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", table), 5+i, "abc", "hello", "e1", "a,b,c")
@@ -233,10 +256,15 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	c.Assert(r.Found, Equals, true)
 	c.Assert(r.Source["tenum"], Equals, "e1")
 	c.Assert(r.Source["tset"], Equals, "a,b")
-	
+
 	r = s.testElasticGet(c, "1:first")
 	c.Assert(r.Found, Equals, true)
-	
+
+	r = s.testElasticGet(c, "9200")
+	c.Assert(r.Found, Equals, true)
+	c.Assert(r.Source["info"]["first"], Equals, "a")
+	c.Assert(r.Source["info"]["second"], Equals, "b")
+
 	r = s.testElasticGet(c, "100")
 	c.Assert(r.Found, Equals, false)
 
