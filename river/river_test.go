@@ -262,8 +262,13 @@ func (s *riverTestSuite) TestRiver(c *C) {
 
 	r = s.testElasticGet(c, "9200")
 	c.Assert(r.Found, Equals, true)
-	c.Assert(r.Source["info"]["first"], Equals, "a")
-	c.Assert(r.Source["info"]["second"], Equals, "b")
+	switch v := r.source["info"].(type) {
+	case map[string]string:
+	    c.Assert(v["first"], Equals, "a")
+	    c.Assert(v["second"], Equals, "b")
+	default:
+	    c.Assert(true, Equals, false)
+	}
 
 	r = s.testElasticGet(c, "100")
 	c.Assert(r.Found, Equals, false)
