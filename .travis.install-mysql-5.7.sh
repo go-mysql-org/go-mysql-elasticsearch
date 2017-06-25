@@ -4,3 +4,4 @@ sudo dpkg --install mysql-apt-config_0.7.3-1_all.deb
 sudo apt-get update -q
 sudo apt-get install -q -y -o Dpkg::Options::=--force-confnew mysql-server
 sudo mysql_upgrade --force
+mysql --version
