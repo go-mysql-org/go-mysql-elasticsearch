@@ -28,7 +28,7 @@ var _ = Suite(&riverTestSuite{})
 
 func (s *riverTestSuite) SetUpSuite(c *C) {
 	var err error
-	s.c, err = client.Connect(*my_addr, "root", "123456", "test")
+	s.c, err = client.Connect(*my_addr, "root", "", "test")
 	c.Assert(err, IsNil)
 
 	s.testExecute(c, "SET SESSION binlog_format = 'ROW'")
