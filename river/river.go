@@ -72,7 +72,6 @@ func NewRiver(c *Config) (*River, error) {
 	cfg.Password = r.c.ESPassword
 	r.es = elastic.NewClient(cfg)
 
-
 	r.st = &stat{r: r}
 	go r.st.Run(r.c.StatAddr)
 
@@ -90,6 +89,7 @@ func (r *River) newCanal() error {
 	cfg.ServerID = r.c.ServerID
 	cfg.Dump.ExecutionPath = r.c.DumpExec
 	cfg.Dump.DiscardErr = false
+	cfg.Dump.SkipMasterData = r.c.SkipMasterData
 
 	var err error
 	r.canal, err = canal.NewCanal(cfg)
