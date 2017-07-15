@@ -1,5 +1,5 @@
-hash: 6600b817f47d623d69c7146d13e98d969f61f4b0cf85d18a1eb62323f91e0b45
-updated: 2017-07-15T17:09:16.907868456+08:00
+hash: 15e32db533c048351476925d28ad5c486e652ff31e71fa5445c791ccce1f815e
+updated: 2017-07-15T21:44:41.838612712+08:00
 imports:
 - name: github.com/BurntSushi/toml
   version: 056c9bc7be7190eaa7715723883caffa5f8fa3e4
@@ -7,6 +7,8 @@ imports:
   version: 6f54ff6318409d31ff16261533ce2c8381a4fd5d
 - name: github.com/ngaut/log
   version: d2af3a61f64d093457fb23b25d20f4ce3cd551ce
+- name: github.com/pingcap/check
+  version: ce8a2f822ab1e245a4eefcef2996531c79c943f1
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/siddontang/go
@@ -29,6 +31,4 @@ imports:
   version: f01ecb60fe3835d80d9a0b7b2bf24b228c89260e
   subpackages:
   - context
-- name: gopkg.in/check.v1
-  version: 11d3bc7aa68e238947792f30573146a3231fc0f1
 testImports: []
