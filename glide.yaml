@@ -7,7 +7,7 @@ import:
 - package: github.com/satori/go.uuid
   version: ^1.1.0
 - package: github.com/siddontang/go-mysql
-  version: ead11cac47bd127a8c667efa07f171a9143d8a25
+  version: 96156dbfdf7556c67eb0889781c072f93295078d
   subpackages:
   - canal
   - client
@@ -22,5 +22,5 @@ import:
   - hack
   - ioutil2
   - sync2
-- package: gopkg.in/check.v1
-  version: 11d3bc7aa68e238947792f30573146a3231fc0f1
+- package: github.com/pingcap/check
+  version: ce8a2f822ab1e245a4eefcef2996531c79c943f1

@@ -29,7 +29,8 @@ type Config struct {
 	Flavor   string `toml:"flavor"`
 	DataDir  string `toml:"data_dir"`
 
-	DumpExec string `toml:"mysqldump"`
+	DumpExec       string `toml:"mysqldump"`
+	SkipMasterData bool   `toml:"skip_master_data"`
 
 	Sources []SourceConfig `toml:"source"`
 

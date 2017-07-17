@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/pingcap/check"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/client"
-	. "gopkg.in/check.v1"
 )
 
 var my_addr = flag.String("my_addr", "127.0.0.1:3306", "MySQL addr")
@@ -110,9 +110,9 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 		},
 
 		&Rule{Schema: "test",
-			Table:        "test_for_json",
-			Index:        "river",
-			Type:         "river",
+			Table: "test_for_json",
+			Index: "river",
+			Type:  "river",
 		},
 	}
 
@@ -263,11 +263,11 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	c.Assert(r.Found, Equals, true)
 	switch v := r.Source["info"].(type) {
 	case map[string]interface{}:
-	    	c.Assert(v["first"], Equals, "a")
-	    	c.Assert(v["second"], Equals, "b")
+		c.Assert(v["first"], Equals, "a")
+		c.Assert(v["second"], Equals, "b")
 	default:
 		c.Assert(v, Equals, nil)
-	    	c.Assert(true, Equals, false)
+		c.Assert(true, Equals, false)
 	}
 
 	r = s.testElasticGet(c, "100")

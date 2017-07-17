@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	. "gopkg.in/check.v1"
+	. "github.com/pingcap/check"
 )
 
 var host = flag.String("host", "127.0.0.1", "Elasticsearch host")
@@ -104,15 +104,15 @@ func (s *elasticTestSuite) TestParent(c *C) {
 	ParentType := "parent"
 
 	mapping := map[string]interface{}{
-			docType: map[string]interface{}{
-				"_parent": map[string]string{"type": ParentType},
+		docType: map[string]interface{}{
+			"_parent": map[string]string{"type": ParentType},
 		},
 	}
-	err := s.c.CreateMapping(index, docType,  mapping)
+	err := s.c.CreateMapping(index, docType, mapping)
 	c.Assert(err, IsNil)
-	
+
 	items := make([]*BulkRequest, 10)
-	
+
 	for i := 0; i < 10; i++ {
 		id := fmt.Sprintf("%d", i)
 		req := new(BulkRequest)

@@ -29,6 +29,10 @@ flavor = "mysql"
 # if not set or empty, ignore mysqldump.
 mysqldump = "mysqldump"
 
+# if we have no privilege to use mysqldump with --master-data,
+# we must skip it.
+#skip_master_data = false
+
 # minimal items to be inserted in one bulk
 bulk_size = 128
 
