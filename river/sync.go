@@ -380,7 +380,7 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 				v := r.makeReqColumnData(&c, afterValues[i])
 				str, ok := v.(string)
 				if ok == false {
-					req.Data[c.Name] = v
+					req.Data[elastic] = v
 				} else {
 					if fieldType == fieldTypeList {
 						req.Data[elastic] = strings.Split(str, ",")
