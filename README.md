@@ -147,6 +147,10 @@ filter = ["id", "name"]
 
 In the above example, we will only sync MySQL table tfiler's columns `id` and `name` to Elasticsearch. 
 
+## Keep in mind
+
++ If you try to sync the same data twice the program will skip the `mysqldump` proccess and only listen to changes in the bin log. To force `mysqldump` again you must delete `./var/master.info`
+
 ## Why not other rivers?
 
 Although there are some other MySQL rivers for Elasticsearch, like [elasticsearch-river-jdbc](https://github.com/jprante/elasticsearch-river-jdbc), [elasticsearch-river-mysql](https://github.com/scharron/elasticsearch-river-mysql), I still want to build a new one with Go, why?
