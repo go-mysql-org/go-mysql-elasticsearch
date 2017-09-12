@@ -25,6 +25,7 @@ const (
 
 const (
 	fieldTypeList = "list"
+	fieldTypeDateTime = "datetime"
 )
 
 type posSaver struct {
@@ -345,6 +346,13 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 					} else {
 						req.Data[elastic] = v
 					}
+				} else if fieldType == fieldTypeDateTime {
+                     			if str, ok := v.(string); ok {
+                        		tm,_ := time.ParseInLocation("2006-01-02 15:04:05",str,time.Local)
+                          		req.Data[elastic] = tm.Unix() * 1000
+                      			} else {
+                        			req.Data[elastic] = v
+                     			}				
 				} else {
 					req.Data[elastic] = v
 				}
