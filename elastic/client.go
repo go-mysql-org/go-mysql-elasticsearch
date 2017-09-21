@@ -144,13 +144,13 @@ type BulkResponseItem struct {
 	Found   bool            `json:"found"`
 }
 
-func (c *Client) doRequest(method string, url string, body *bytes.Buffer, contentType string) (*http.Response, error) {
+func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	req.Header.Set("content-type", contentType)
+	req.Header.Set("content-type", "application/json")
 
 	if len(c.User) > 0 && len(c.Password) > 0 {
 		req.SetBasicAuth(c.User, c.Password)
@@ -168,7 +168,7 @@ func (c *Client) Do(method string, url string, body map[string]interface{}) (*Re
 
 	buf := bytes.NewBuffer(bodyData)
 
-	resp, err := c.doRequest(method, url, buf, "application/json")
+	resp, err := c.DoRequest(method, url, buf)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -199,7 +199,7 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 		}
 	}
 
-	resp, err := c.doRequest("POST", url, &buf, "application/x-ndjson")
+	resp, err := c.DoRequest("POST", url, &buf)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -327,20 +327,20 @@ func (c *Client) Delete(index string, docType string, id string) error {
 
 // only support parent in 'Bulk' related apis
 func (c *Client) Bulk(items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/_bulk", c.Addr)
+	reqUrl := fmt.Sprintf("http://%s/_bulk?pretty", c.Addr)
 
 	return c.DoBulk(reqUrl, items)
 }
 
 func (c *Client) IndexBulk(index string, items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/_bulk", c.Addr,
+	reqUrl := fmt.Sprintf("http://%s/%s/_bulk?pretty", c.Addr,
 		url.QueryEscape(index))
 
 	return c.DoBulk(reqUrl, items)
 }
 
 func (c *Client) IndexTypeBulk(index string, docType string, items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/_bulk", c.Addr,
+	reqUrl := fmt.Sprintf("http://%s/%s/%s/_bulk?pretty", c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType))
 
