@@ -124,7 +124,6 @@ func (s *elasticTestSuite) TestParent(c *C) {
 	}
 
 	resp, err := s.c.IndexTypeBulk(index, docType, items)
-	c.Logf("%#v", resp)
 	c.Assert(err, IsNil)
 	c.Assert(resp.Code, Equals, 200)
 	c.Assert(resp.Errors, Equals, false)

@@ -144,14 +144,13 @@ type BulkResponseItem struct {
 	Found   bool            `json:"found"`
 }
 
-func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http.Response, error) {
+func (c *Client) doRequest(method string, url string, body *bytes.Buffer, contentType string) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	// Always use json type content type.
-	req.Header.Set("content-type", "application/json")
+	req.Header.Set("content-type", contentType)
 
 	if len(c.User) > 0 && len(c.Password) > 0 {
 		req.SetBasicAuth(c.User, c.Password)
@@ -169,7 +168,7 @@ func (c *Client) Do(method string, url string, body map[string]interface{}) (*Re
 
 	buf := bytes.NewBuffer(bodyData)
 
-	resp, err := c.DoRequest(method, url, buf)
+	resp, err := c.doRequest(method, url, buf, "application/json")
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -200,7 +199,7 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 		}
 	}
 
-	resp, err := c.DoRequest("POST", url, &buf)
+	resp, err := c.doRequest("POST", url, &buf, "application/x-ndjson")
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
