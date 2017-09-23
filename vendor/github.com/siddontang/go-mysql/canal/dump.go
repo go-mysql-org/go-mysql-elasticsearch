@@ -93,9 +93,10 @@ func (c *Canal) AddDumpIgnoreTables(db string, tables ...string) {
 
 func (c *Canal) tryDump() error {
 	pos := c.master.Position()
-	if len(pos.Name) > 0 && pos.Pos > 0 {
+	gtid := c.master.GTID()
+	if (len(pos.Name) > 0 && pos.Pos > 0) || gtid != nil {
 		// we will sync with binlog name and position
-		log.Infof("skip dump, use last binlog replication pos %s", pos)
+		log.Infof("skip dump, use last binlog replication pos %s or GTID %s", pos, gtid)
 		return nil
 	}
 
@@ -125,6 +126,8 @@ func (c *Canal) tryDump() error {
 	log.Infof("dump MySQL and parse OK, use %0.2f seconds, start binlog replication at (%s, %d)",
 		time.Now().Sub(start).Seconds(), h.name, h.pos)
 
-	c.master.Update(mysql.Position{h.name, uint32(h.pos)})
+	pos = mysql.Position{h.name, uint32(h.pos)}
+	c.master.Update(pos)
+	c.eventHandler.OnPosSynced(pos, true)
 	return nil
 }

@@ -14,19 +14,18 @@ import (
 // Although there are many Elasticsearch clients with Go, I still want to implement one by myself.
 // Because we only need some very simple usages.
 type Client struct {
-	Addr string
-	User string
+	Addr     string
+	User     string
 	Password string
 
 	c *http.Client
 }
 
 type ClientConfig struct {
-	Addr string
-	User string
+	Addr     string
+	User     string
 	Password string
 }
-
 
 func NewClient(conf *ClientConfig) *Client {
 	c := new(Client)
@@ -150,6 +149,9 @@ func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+
+	req.Header.Set("content-type", "application/json")
+
 	if len(c.User) > 0 && len(c.Password) > 0 {
 		req.SetBasicAuth(c.User, c.Password)
 	}
@@ -165,6 +167,9 @@ func (c *Client) Do(method string, url string, body map[string]interface{}) (*Re
 	}
 
 	buf := bytes.NewBuffer(bodyData)
+	if body == nil {
+		buf = bytes.NewBuffer(nil)
+	}
 
 	resp, err := c.DoRequest(method, url, buf)
 	if err != nil {
@@ -325,20 +330,20 @@ func (c *Client) Delete(index string, docType string, id string) error {
 
 // only support parent in 'Bulk' related apis
 func (c *Client) Bulk(items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/_bulk", c.Addr)
+	reqUrl := fmt.Sprintf("http://%s/_bulk?pretty", c.Addr)
 
 	return c.DoBulk(reqUrl, items)
 }
 
 func (c *Client) IndexBulk(index string, items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/_bulk", c.Addr,
+	reqUrl := fmt.Sprintf("http://%s/%s/_bulk?pretty", c.Addr,
 		url.QueryEscape(index))
 
 	return c.DoBulk(reqUrl, items)
 }
 
 func (c *Client) IndexTypeBulk(index string, docType string, items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/_bulk", c.Addr,
+	reqUrl := fmt.Sprintf("http://%s/%s/%s/_bulk?pretty", c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType))
 

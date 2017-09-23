@@ -25,6 +25,8 @@ type Canal struct {
 
 	cfg *Config
 
+	useGTID bool
+
 	master     *masterInfo
 	dumper     *dump.Dumper
 	dumpDoneCh chan struct{}
@@ -105,6 +107,7 @@ func (c *Canal) prepareDumper() error {
 	c.dumper.SetCharset(charset)
 
 	c.dumper.SkipMasterData(c.cfg.Dump.SkipMasterData)
+	c.dumper.SetMaxAllowedPacket(c.cfg.Dump.MaxAllowedPacketMB)
 
 	for _, ignoreTable := range c.cfg.Dump.IgnoreTables {
 		if seps := strings.Split(ignoreTable, ","); len(seps) == 2 {
@@ -132,7 +135,15 @@ func (c *Canal) Start() error {
 
 // StartFrom will sync from the binlog position directly, ignore mysqldump.
 func (c *Canal) StartFrom(pos mysql.Position) error {
+	c.useGTID = false
 	c.master.Update(pos)
+
+	return c.Start()
+}
+
+func (c *Canal) StartFromGTID(set mysql.GTIDSet) error {
+	c.useGTID = true
+	c.master.UpdateGTID(set)
 
 	return c.Start()
 }
@@ -151,7 +162,7 @@ func (c *Canal) run() error {
 		return errors.Trace(err)
 	}
 
-	if err = c.startSyncBinlog(); err != nil {
+	if err = c.runSyncBinlog(); err != nil {
 		log.Errorf("canal start sync binlog err: %v", err)
 		return errors.Trace(err)
 	}
@@ -166,7 +177,6 @@ func (c *Canal) Close() {
 	defer c.m.Unlock()
 
 	c.cancel()
-
 	c.connLock.Lock()
 	c.conn.Close()
 	c.conn = nil
@@ -176,6 +186,8 @@ func (c *Canal) Close() {
 		c.syncer.Close()
 		c.syncer = nil
 	}
+
+	c.eventHandler.OnPosSynced(c.master.pos, true)
 
 	c.wg.Wait()
 }
@@ -265,16 +277,18 @@ func (c *Canal) prepareSyncer() error {
 	}
 
 	cfg := replication.BinlogSyncerConfig{
-		ServerID: c.cfg.ServerID,
-		Flavor:   c.cfg.Flavor,
-		Host:     seps[0],
-		Port:     uint16(port),
-		User:     c.cfg.User,
-		Password: c.cfg.Password,
-		Charset:  c.cfg.Charset,
+		ServerID:        c.cfg.ServerID,
+		Flavor:          c.cfg.Flavor,
+		Host:            seps[0],
+		Port:            uint16(port),
+		User:            c.cfg.User,
+		Password:        c.cfg.Password,
+		Charset:         c.cfg.Charset,
+		HeartbeatPeriod: c.cfg.HeartbeatPeriod,
+		ReadTimeout:     c.cfg.ReadTimeout,
 	}
 
-	c.syncer = replication.NewBinlogSyncer(&cfg)
+	c.syncer = replication.NewBinlogSyncer(cfg)
 
 	return nil
 }
