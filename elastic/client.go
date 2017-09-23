@@ -167,6 +167,9 @@ func (c *Client) Do(method string, url string, body map[string]interface{}) (*Re
 	}
 
 	buf := bytes.NewBuffer(bodyData)
+	if body == nil {
+		buf = bytes.NewBuffer(nil)
+	}
 
 	resp, err := c.DoRequest(method, url, buf)
 	if err != nil {
