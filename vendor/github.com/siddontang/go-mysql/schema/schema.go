@@ -5,6 +5,7 @@
 package schema
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -31,8 +32,10 @@ const (
 type TableColumn struct {
 	Name       string
 	Type       int
+	Collation  string
 	RawType    string
 	IsAuto     bool
+	IsUnsigned bool
 	EnumValues []string
 	SetValues  []string
 }
@@ -56,9 +59,9 @@ func (ta *Table) String() string {
 	return fmt.Sprintf("%s.%s", ta.Schema, ta.Name)
 }
 
-func (ta *Table) AddColumn(name string, columnType string, extra string) {
+func (ta *Table) AddColumn(name string, columnType string, collation string, extra string) {
 	index := len(ta.Columns)
-	ta.Columns = append(ta.Columns, TableColumn{Name: name})
+	ta.Columns = append(ta.Columns, TableColumn{Name: name, Collation: collation})
 	ta.Columns[index].RawType = columnType
 
 	if strings.Contains(columnType, "int") || strings.HasPrefix(columnType, "year") {
@@ -99,6 +102,10 @@ func (ta *Table) AddColumn(name string, columnType string, extra string) {
 		ta.Columns[index].Type = TYPE_JSON
 	} else {
 		ta.Columns[index].Type = TYPE_STRING
+	}
+
+	if strings.Contains(columnType, "unsigned") || strings.Contains(columnType, "zerofill") {
+		ta.Columns[index].IsUnsigned = true
 	}
 
 	if extra == "auto_increment" {
@@ -156,6 +163,25 @@ func IsTableExist(conn mysql.Executer, schema string, name string) (bool, error)
 	return r.RowNumber() == 1, nil
 }
 
+func NewTableFromSqlDB(conn *sql.DB, schema string, name string) (*Table, error) {
+	ta := &Table{
+		Schema:  schema,
+		Name:    name,
+		Columns: make([]TableColumn, 0, 16),
+		Indexes: make([]*Index, 0, 8),
+	}
+
+	if err := ta.fetchColumnsViaSqlDB(conn); err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	if err := ta.fetchIndexesViaSqlDB(conn); err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	return ta, nil
+}
+
 func NewTable(conn mysql.Executer, schema string, name string) (*Table, error) {
 	ta := &Table{
 		Schema:  schema,
@@ -176,7 +202,7 @@ func NewTable(conn mysql.Executer, schema string, name string) (*Table, error) {
 }
 
 func (ta *Table) fetchColumns(conn mysql.Executer) error {
-	r, err := conn.Execute(fmt.Sprintf("describe `%s`.`%s`", ta.Schema, ta.Name))
+	r, err := conn.Execute(fmt.Sprintf("show full columns from `%s`.`%s`", ta.Schema, ta.Name))
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -184,12 +210,37 @@ func (ta *Table) fetchColumns(conn mysql.Executer) error {
 	for i := 0; i < r.RowNumber(); i++ {
 		name, _ := r.GetString(i, 0)
 		colType, _ := r.GetString(i, 1)
-		extra, _ := r.GetString(i, 5)
+		collation, _ := r.GetString(i, 2)
+		extra, _ := r.GetString(i, 6)
 
-		ta.AddColumn(name, colType, extra)
+		ta.AddColumn(name, colType, collation, extra)
 	}
 
 	return nil
+}
+
+func (ta *Table) fetchColumnsViaSqlDB(conn *sql.DB) error {
+	r, err := conn.Query(fmt.Sprintf("show full columns from `%s`.`%s`", ta.Schema, ta.Name))
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	defer r.Close()
+
+	var unusedVal interface{}
+	unused := &unusedVal
+
+	for r.Next() {
+		var name, colType, extra string
+		var collation sql.NullString
+		err := r.Scan(&name, &colType, &collation, &unused, &unused, &unused, &extra, &unused, &unused)
+		if err != nil {
+			return errors.Trace(err)
+		}
+		ta.AddColumn(name, colType, collation.String, extra)
+	}
+
+	return r.Err()
 }
 
 func (ta *Table) fetchIndexes(conn mysql.Executer) error {
@@ -211,6 +262,59 @@ func (ta *Table) fetchIndexes(conn mysql.Executer) error {
 		currentIndex.AddColumn(colName, cardinality)
 	}
 
+	return ta.fetchPrimaryKeyColumns()
+
+}
+
+func (ta *Table) fetchIndexesViaSqlDB(conn *sql.DB) error {
+	r, err := conn.Query(fmt.Sprintf("show index from `%s`.`%s`", ta.Schema, ta.Name))
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	defer r.Close()
+
+	var currentIndex *Index
+	currentName := ""
+
+	var unusedVal interface{}
+	unused := &unusedVal
+
+	for r.Next() {
+		var indexName, colName string
+		var cardinality uint64
+
+		err := r.Scan(
+			&unused,
+			&unused,
+			&indexName,
+			&unused,
+			&colName,
+			&unused,
+			&cardinality,
+			&unused,
+			&unused,
+			&unused,
+			&unused,
+			&unused,
+			&unused,
+		)
+		if err != nil {
+			return errors.Trace(err)
+		}
+
+		if currentName != indexName {
+			currentIndex = ta.AddIndex(indexName)
+			currentName = indexName
+		}
+
+		currentIndex.AddColumn(colName, cardinality)
+	}
+
+	return ta.fetchPrimaryKeyColumns()
+}
+
+func (ta *Table) fetchPrimaryKeyColumns() error {
 	if len(ta.Indexes) == 0 {
 		return nil
 	}

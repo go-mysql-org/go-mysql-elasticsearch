@@ -2,11 +2,11 @@ package river
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 	"time"
-	"encoding/json"
 
 	"github.com/juju/errors"
 	"github.com/ngaut/log"
@@ -84,6 +84,14 @@ func (h *eventHandler) OnRow(e *canal.RowsEvent) error {
 	h.r.syncCh <- reqs
 
 	return h.r.ctx.Err()
+}
+
+func (h *eventHandler) OnGTID(gtid mysql.GTIDSet) error {
+	return nil
+}
+
+func (h *eventHandler) OnPosSynced(pos mysql.Position, force bool) error {
+	return nil
 }
 
 func (h *eventHandler) String() string {
@@ -401,8 +409,8 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 // Else get the ID's column in one row and format them into a string
 func (r *River) getDocID(rule *Rule, row []interface{}) (string, error) {
 	var (
-  		ids []interface{}
-  		err error 
+		ids []interface{}
+		err error
 	)
 	if rule.ID == nil {
 		ids, err = canal.GetPKValues(rule.TableInfo, row)
@@ -452,7 +460,7 @@ func (r *River) doBulk(reqs []*elastic.BulkRequest) error {
 	if resp, err := r.es.Bulk(reqs); err != nil {
 		log.Errorf("sync docs err %v after binlog %s", err, r.canal.SyncedPosition())
 		return errors.Trace(err)
-	} else if resp.Code / 100 == 2 || resp.Errors {
+	} else if resp.Code/100 == 2 || resp.Errors {
 		for i := 0; i < len(resp.Items); i++ {
 			for action, item := range resp.Items[i] {
 				if len(item.Error) > 0 {
