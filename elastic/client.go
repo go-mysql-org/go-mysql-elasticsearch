@@ -14,19 +14,18 @@ import (
 // Although there are many Elasticsearch clients with Go, I still want to implement one by myself.
 // Because we only need some very simple usages.
 type Client struct {
-	Addr string
-	User string
+	Addr     string
+	User     string
 	Password string
 
 	c *http.Client
 }
 
 type ClientConfig struct {
-	Addr string
-	User string
+	Addr     string
+	User     string
 	Password string
 }
-
 
 func NewClient(conf *ClientConfig) *Client {
 	c := new(Client)
@@ -165,6 +164,9 @@ func (c *Client) Do(method string, url string, body map[string]interface{}) (*Re
 	}
 
 	buf := bytes.NewBuffer(bodyData)
+	if body == nil {
+		buf = bytes.NewBuffer(nil)
+	}
 
 	resp, err := c.DoRequest(method, url, buf)
 	if err != nil {
