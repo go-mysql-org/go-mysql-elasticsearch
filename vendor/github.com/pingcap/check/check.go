@@ -86,7 +86,6 @@ type C struct {
 	logb      *logger
 	logw      io.Writer
 	done      chan *C
-	parallel  chan *C
 	reason    string
 	mustFail  bool
 	tempDir   *tempDir
@@ -612,22 +611,12 @@ func (runner *suiteRunner) run() *Result {
 		if runner.checkFixtureArgs() {
 			c := runner.runFixture(runner.setUpSuite, "", nil)
 			if c == nil || c.status() == succeededSt {
-				var delayedC []*C
 				for i := 0; i != len(runner.tests); i++ {
-					c := runner.forkTest(runner.tests[i])
-					select {
-					case <-c.done:
-					case <-c.parallel:
-						delayedC = append(delayedC, c)
-					}
+					c := runner.runTest(runner.tests[i])
 					if c.status() == fixturePanickedSt {
 						runner.skipTests(missedSt, runner.tests[i+1:])
 						break
 					}
-				}
-				// Wait those parallel tests finish.
-				for _, delayed := range delayedC {
-					<-delayed.done
 				}
 			} else if c != nil && c.status() == skippedSt {
 				runner.skipTests(skippedSt, runner.tests)
@@ -666,7 +655,6 @@ func (runner *suiteRunner) forkCall(method *methodType, kind funcKind, testName 
 		logw:      logw,
 		tempDir:   runner.tempDir,
 		done:      make(chan *C, 1),
-		parallel:  make(chan *C, 1),
 		timer:     timer{benchTime: runner.benchTime},
 		startTime: time.Now(),
 		benchMem:  runner.benchMem,
