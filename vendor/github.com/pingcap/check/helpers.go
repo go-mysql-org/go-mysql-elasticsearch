@@ -76,11 +76,6 @@ func (c *C) Skip(reason string) {
 	c.stopNow()
 }
 
-// Parallel will mark the test run parallel within a test suite.
-func (c *C) Parallel() {
-	c.parallel <- c
-}
-
 // -----------------------------------------------------------------------
 // Basic logging.
 

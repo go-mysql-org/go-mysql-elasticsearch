@@ -44,8 +44,6 @@ var (
 	newWorkFlag    = flag.Bool("check.work", false, "Display and do not remove the test working directory")
 )
 
-var CustomVerboseFlag bool
-
 // TestingT runs all test suites registered with the Suite function,
 // printing results to stdout, and reporting any failures back to
 // the "testing" package.
@@ -56,7 +54,7 @@ func TestingT(testingT *testing.T) {
 	}
 	conf := &RunConf{
 		Filter:        *oldFilterFlag + *newFilterFlag,
-		Verbose:       *oldVerboseFlag || *newVerboseFlag || CustomVerboseFlag,
+		Verbose:       *oldVerboseFlag || *newVerboseFlag,
 		Stream:        *oldStreamFlag || *newStreamFlag,
 		Benchmark:     *oldBenchFlag || *newBenchFlag,
 		BenchmarkTime: benchTime,
