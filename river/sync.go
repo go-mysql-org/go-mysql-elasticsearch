@@ -311,12 +311,13 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 		if err == nil && f != nil {
 			return f
 		}
-       case schema.TYPE_DATETIME:
-               switch v := value.(type) {
-               case string:
-                       vt, _ := time.Parse("2006-01-02 15:04:05", string(v))
-                       return vt.Format(time.RFC3339)
-               }
+	case schema.TYPE_DATETIME:
+		switch v := value.(type) {
+		case string:
+			vt, _ := time.Parse("2006-01-02 15:04:05", string(v))
+			timezone := time.Now().Local().Format("-0700")
+			return vt.Format("2006-01-02T15:04:05") + timezone
+		}
 	}
 
 	return value
