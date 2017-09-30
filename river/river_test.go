@@ -218,7 +218,7 @@ func (s *riverTestSuite) testPrepareData(c *C) {
 	}
 
 	datetime := time.Now().Format(mysql.TimeFormat)
-	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tdatetime) VALUES (?, ?, ?, ?, ?, ?)", 5, "first", "hello go 1", "e1", "a,b", datetime)
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tdatetime) VALUES (?, ?, ?, ?, ?, ?)", 16, "test datetime", "hello go 16", "e1", "a,b", datetime)
 }
 
 func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
