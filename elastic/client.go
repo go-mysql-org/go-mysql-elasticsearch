@@ -146,6 +146,7 @@ type BulkResponseItem struct {
 
 func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, body)
+	req.Header.Add("Content-Type", "application/json")
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
