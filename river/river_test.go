@@ -10,6 +10,7 @@ import (
 	. "github.com/pingcap/check"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/client"
+	"github.com/siddontang/go-mysql/mysql"
 )
 
 var my_addr = flag.String("my_addr", "127.0.0.1:3306", "MySQL addr")
@@ -42,6 +43,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
             tenum ENUM("e1", "e2", "e3"),
             tset SET("a", "b", "c"),
             tbit BIT(1) default 1,
+            tdatetime DATETIME DEFAULT NULL,
             PRIMARY KEY(id)) ENGINE=INNODB;
     `
 
@@ -214,6 +216,9 @@ func (s *riverTestSuite) testPrepareData(c *C) {
 		table := fmt.Sprintf("test_river_%04d", i)
 		s.testExecute(c, fmt.Sprintf("INSERT INTO %s (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", table), 5+i, "abc", "hello", "e1", "a,b,c")
 	}
+
+	datetime := time.Now().Format(mysql.TimeFormat)
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tdatetime) VALUES (?, ?, ?, ?, ?, ?)", 5, "first", "hello go 1", "e1", "a,b", datetime)
 }
 
 func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
@@ -223,6 +228,17 @@ func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
 	r, err := s.r.es.Get(index, docType, id)
 	c.Assert(err, IsNil)
 
+	return r
+}
+
+func (s *riverTestSuite) testElasticMapping(c *C) *elastic.MappingResponse {
+	index := "river"
+	docType := "river"
+
+	r, err := s.r.es.GetMapping(index, docType)
+	c.Assert(err, IsNil)
+
+	c.Assert(r.Properties["tdatetime"].Type, Equals, "date")
 	return r
 }
 
@@ -249,6 +265,10 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	s.r.Start()
 
 	testWaitSyncDone(c, s.r)
+
+	var mr *elastic.MappingResponse
+	mr = s.testElasticMapping(c)
+	c.Assert(mr.Code, Equals, 200)
 
 	var r *elastic.Response
 	r = s.testElasticGet(c, "1")
