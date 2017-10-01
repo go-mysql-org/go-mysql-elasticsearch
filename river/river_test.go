@@ -238,7 +238,7 @@ func (s *riverTestSuite) testElasticMapping(c *C) *elastic.MappingResponse {
 	r, err := s.r.es.GetMapping(index, docType)
 	c.Assert(err, IsNil)
 
-	c.Assert(r.Properties["tdatetime"].Type, Equals, "date")
+	c.Assert(r.Mapping[index].Mappings[docType].Properties["tdatetime"].Type, Equals, "date")
 	return r
 }
 

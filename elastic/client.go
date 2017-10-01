@@ -146,12 +146,16 @@ type BulkResponseItem struct {
 
 type MappingResponse struct {
 	Code   int
-	Properties map[string]*MappingType `json:"properties"`
+	Mapping Mapping
 }
 
-type MappingType struct {
-	Type	string          `json:"type"`
-	Fields	interface{} 	`json:"fields"`
+type Mapping map[string]struct {
+	Mappings map[string]struct {
+		Properties map[string]struct {
+			Type	string          `json:"type"`
+			Fields	interface{} 	`json:"fields"`
+		} `json:"properties"`
+	} `json:"mappings"`
 }
 
 func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http.Response, error) {
@@ -277,24 +281,13 @@ func (c *Client) GetMapping(index string, docType string) (*MappingResponse, err
 		return nil, errors.Trace(err)
 	}
 
-	var m map[string]map[string]map[string]map[string]map[string]interface{}
-	err = json.Unmarshal(data, &m)
+	ret := new(MappingResponse)
+	err = json.Unmarshal(data, &ret.Mapping)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	properties := m[index]["mappings"][docType]["properties"]
-	ret := new(MappingResponse)
-	ret.Properties = make(map[string]*MappingType)
 	ret.Code = resp.StatusCode
-
-	var mt MappingType
-	for k, v := range properties {
-		b, _ := json.Marshal(v)
-		err = json.Unmarshal(b, &mt)
-		ret.Properties[k] = &MappingType{mt.Type, mt.Fields}
-	}
-
 	return ret, errors.Trace(err)
 }
 
