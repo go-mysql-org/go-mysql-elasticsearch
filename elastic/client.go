@@ -144,6 +144,20 @@ type BulkResponseItem struct {
 	Found   bool            `json:"found"`
 }
 
+type MappingResponse struct {
+	Code   int
+	Mapping Mapping
+}
+
+type Mapping map[string]struct {
+	Mappings map[string]struct {
+		Properties map[string]struct {
+			Type	string          `json:"type"`
+			Fields	interface{} 	`json:"fields"`
+		} `json:"properties"`
+	} `json:"mappings"`
+}
+
 func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, body)
 	req.Header.Add("Content-Type", "application/json")
@@ -248,6 +262,34 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 
 	_, err = c.Do("POST", reqUrl, mapping)
 	return errors.Trace(err)
+}
+
+func (c *Client) GetMapping(index string, docType string) (*MappingResponse, error){
+	reqUrl := fmt.Sprintf("http://%s/%s/%s/_mapping", c.Addr,
+		url.QueryEscape(index),
+		url.QueryEscape(docType))
+	buf := bytes.NewBuffer(nil)
+	resp, err := c.DoRequest("GET", reqUrl, buf)
+
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	defer resp.Body.Close()
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	ret := new(MappingResponse)
+	err = json.Unmarshal(data, &ret.Mapping)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	ret.Code = resp.StatusCode
+	return ret, errors.Trace(err)
 }
 
 func (c *Client) DeleteIndex(index string) error {
