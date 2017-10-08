@@ -6,7 +6,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/ngaut/log"
+	log "github.com/sirupsen/logrus"
 	"github.com/siddontang/go/sync2"
 )
 

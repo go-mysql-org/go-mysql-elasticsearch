@@ -8,8 +8,8 @@ import (
 	"syscall"
 
 	"github.com/juju/errors"
-	"github.com/ngaut/log"
 	"github.com/siddontang/go-mysql-elasticsearch/river"
+	log "github.com/sirupsen/logrus"
 )
 
 var configFile = flag.String("config", "./etc/river.toml", "go-mysql-elasticsearch config file")
@@ -27,7 +27,8 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
 
-	log.SetLevelByString(*logLevel)
+	level, _ := log.ParseLevel(*logLevel)
+	log.SetLevel(level)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
