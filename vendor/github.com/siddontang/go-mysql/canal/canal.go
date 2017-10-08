@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
-	"github.com/ngaut/log"
+	log "github.com/sirupsen/logrus"
 	"github.com/siddontang/go-mysql/client"
 	"github.com/siddontang/go-mysql/dump"
 	"github.com/siddontang/go-mysql/mysql"
@@ -181,13 +181,9 @@ func (c *Canal) Close() {
 	c.conn.Close()
 	c.conn = nil
 	c.connLock.Unlock()
+	c.syncer.Close()
 
-	if c.syncer != nil {
-		c.syncer.Close()
-		c.syncer = nil
-	}
-
-	c.eventHandler.OnPosSynced(c.master.pos, true)
+	c.eventHandler.OnPosSynced(c.master.Position(), true)
 
 	c.wg.Wait()
 }
