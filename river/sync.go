@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/juju/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go-mysql/schema"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -25,6 +25,9 @@ const (
 
 const (
 	fieldTypeList = "list"
+	// for the mysql int type to es date type
+	// set the [rule.field] created_time = ",date"
+	fieldTypeDate = "date"
 )
 
 type posSaver struct {
@@ -352,16 +355,7 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 			mysql, elastic, fieldType := r.getFieldParts(k, v)
 			if mysql == c.Name {
 				mapped = true
-				v := r.makeReqColumnData(&c, values[i])
-				if fieldType == fieldTypeList {
-					if str, ok := v.(string); ok {
-						req.Data[elastic] = strings.Split(str, ",")
-					} else {
-						req.Data[elastic] = v
-					}
-				} else {
-					req.Data[elastic] = v
-				}
+				req.Data[elastic] = r.getFieldValue(&c, fieldType, values[i])
 			}
 		}
 		if mapped == false {
@@ -390,18 +384,7 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 			mysql, elastic, fieldType := r.getFieldParts(k, v)
 			if mysql == c.Name {
 				mapped = true
-				// has custom field mapping
-				v := r.makeReqColumnData(&c, afterValues[i])
-				str, ok := v.(string)
-				if ok == false {
-					req.Data[elastic] = v
-				} else {
-					if fieldType == fieldTypeList {
-						req.Data[elastic] = strings.Split(str, ",")
-					} else {
-						req.Data[elastic] = str
-					}
-				}
+				req.Data[elastic] = r.getFieldValue(&c, fieldType, afterValues[i])
 			}
 		}
 		if mapped == false {
@@ -478,4 +461,34 @@ func (r *River) doBulk(reqs []*elastic.BulkRequest) error {
 	}
 
 	return nil
+}
+
+// get mysql field value and convert it to specific value to es
+func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value interface{}) interface{} {
+	var fieldValue interface{}
+	switch fieldType {
+	case fieldTypeList:
+		v := r.makeReqColumnData(col, value)
+		if str, ok := v.(string); ok {
+			fieldValue = strings.Split(str, ",")
+		} else {
+			fieldValue = v
+		}
+
+	case fieldTypeDate:
+		if col.Type == schema.TYPE_NUMBER {
+			col.Type = schema.TYPE_DATETIME
+			switch value := value.(type) {
+			case int64:
+				fieldValue = r.makeReqColumnData(col, time.Unix(value, 0).Format("2006-01-02 15:04:05"))
+			case int32:
+				fieldValue = r.makeReqColumnData(col, time.Unix(int64(value), 0).Format("2006-01-02 15:04:05"))
+			}
+		}
+	}
+
+	if fieldValue == nil {
+		fieldValue = r.makeReqColumnData(col, value)
+	}
+	return fieldValue
 }
