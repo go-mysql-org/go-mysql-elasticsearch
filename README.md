@@ -89,6 +89,9 @@ type = "t"
 
     // This will map column title to elastic search title and use array type
     title=",list"
+
+    // If the created_time field type is "int", and you want to convert it to "date" type in es, you can do it as below
+    created_time=",date"
 ```
 
 Modifier "list" will translates a mysql string field like "a,b,c" on an elastic array type '{"a", "b", "c"}' this is specially useful if you need to use those fields on filtering on elasticsearch.
