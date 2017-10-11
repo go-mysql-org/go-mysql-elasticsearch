@@ -481,6 +481,12 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 			switch value := value.(type) {
 			case int64:
 				fieldValue = r.makeReqColumnData(col, time.Unix(value, 0).Format("2006-01-02 15:04:05"))
+			case int:
+				fieldValue = r.makeReqColumnData(col, time.Unix(int64(value), 0).Format("2006-01-02 15:04:05"))
+			case int8:
+				fieldValue = r.makeReqColumnData(col, time.Unix(int64(value), 0).Format("2006-01-02 15:04:05"))
+			case int16:
+				fieldValue = r.makeReqColumnData(col, time.Unix(int64(value), 0).Format("2006-01-02 15:04:05"))
 			case int32:
 				fieldValue = r.makeReqColumnData(col, time.Unix(int64(value), 0).Format("2006-01-02 15:04:05"))
 			}
