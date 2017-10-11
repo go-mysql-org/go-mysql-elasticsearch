@@ -478,17 +478,11 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 	case fieldTypeDate:
 		if col.Type == schema.TYPE_NUMBER {
 			col.Type = schema.TYPE_DATETIME
-			switch value := value.(type) {
-			case int64:
-				fieldValue = r.makeReqColumnData(col, time.Unix(value, 0).Format("2006-01-02 15:04:05"))
-			case int:
-				fieldValue = r.makeReqColumnData(col, time.Unix(int64(value), 0).Format("2006-01-02 15:04:05"))
-			case int8:
-				fieldValue = r.makeReqColumnData(col, time.Unix(int64(value), 0).Format("2006-01-02 15:04:05"))
-			case int16:
-				fieldValue = r.makeReqColumnData(col, time.Unix(int64(value), 0).Format("2006-01-02 15:04:05"))
-			case int32:
-				fieldValue = r.makeReqColumnData(col, time.Unix(int64(value), 0).Format("2006-01-02 15:04:05"))
+
+			v := reflect.ValueOf(value)
+			switch v.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				fieldValue = r.makeReqColumnData(col, time.Unix(v.Int(), 0).Format(mysql.TimeFormat))
 			}
 		}
 	}
