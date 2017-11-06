@@ -39,6 +39,9 @@ bulk_size = 128
 # force flush the pending requests if we don't have enough items >= bulk_size
 flush_bulk_time = "200ms"
 
+# Ignore table without primary key
+skip_non_pk = false
+
 # MySQL data source
 [[source]]
 schema = "test"
