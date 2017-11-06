@@ -46,6 +46,16 @@ tables = ["t3", t4]
 
 `schema` is the database name, and `tables` includes the table need to be synced.
 
+If you want to sync **all table in database**, you can use **asterisk(\*)**.  
+```
+[[source]]
+schema = "test"
+tables = ["*"]
+
+# When using an asterisk, it is not possible to sync multiple tables
+# tables = ["*", "table"] (X)
+```
+
 ## Rule
 
 By default, go-mysql-elasticsearch will use MySQL table name as the Elasticserach's index and type name, use MySQL table field name as the Elasticserach's field name.
