@@ -52,8 +52,8 @@ If you want to sync **all table in database**, you can use **asterisk(\*)**.
 schema = "test"
 tables = ["*"]
 
-# When using an asterisk, it is not possible to sync multiple tables
-# tables = ["*", "table"] (X)
+# When using an asterisk, it is not allowed to sync multiple tables
+# tables = ["*", "table"]
 ```
 
 ## Rule
