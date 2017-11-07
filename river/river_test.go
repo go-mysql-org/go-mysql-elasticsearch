@@ -264,6 +264,11 @@ func testWaitSyncDone(c *C, r *River) {
 	c.Fatalf("wait 1s but still have %d items to be synced", len(r.syncCh))
 }
 
+func testBuildTable(c *C) {
+	c.Assert(buildTable("*"), Equals, ".*")
+	c.Assert(buildTable("table"), Equals, "table")
+}
+
 func testTableValidation(c *C) {
 	c.Assert(isValidTables([]string{"*"}), IsTrue)
 	c.Assert(isValidTables([]string{"table", "table2"}), IsTrue)
@@ -357,5 +362,6 @@ func (s *riverTestSuite) TestRiver(c *C) {
 		c.Assert(r.Source["es_title"], Equals, "hello")
 	}
 
+	testBuildTable(c)
 	testTableValidation(c)
 }
