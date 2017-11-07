@@ -232,16 +232,23 @@ func (r *River) prepareRule() error {
 		}
 	}
 
-	for _, rule := range r.rules {
+	rules := make(map[string]*Rule)
+	for key, rule := range r.rules {
 		if rule.TableInfo, err = r.canal.GetTable(rule.Schema, rule.Table); err != nil {
 			return errors.Trace(err)
 		}
 
 		if len(rule.TableInfo.PKColumns) == 0 {
-			return errors.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
+			if !r.c.SkipNoPkTable {
+				return errors.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
+			} else {
+				log.Errorf("ignored table without a primary key: %s\n", rule.TableInfo.Name)
+			}
+		} else {
+			rules[key] = rule;
 		}
-
 	}
+	r.rules = rules
 
 	return nil
 }

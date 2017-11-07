@@ -39,6 +39,8 @@ type Config struct {
 	BulkSize int `toml:"bulk_size"`
 
 	FlushBulkTime TomlDuration `toml:"flush_bulk_time"`
+
+	SkipNoPkTable bool `toml:"skip_no_pk_table"`
 }
 
 func NewConfigWithFile(name string) (*Config, error) {

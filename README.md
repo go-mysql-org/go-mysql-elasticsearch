@@ -150,6 +150,17 @@ filter = ["id", "name"]
 
 In the above example, we will only sync MySQL table tfiler's columns `id` and `name` to Elasticsearch. 
 
+## Ignore table without a primary key
+When you sync table without a primary key, you can see below error message.
+```
+schema.table must have a PK for a column
+```
+You can ignore these tables in the configuration like:
+```
+# Ignore table without a primary key
+skip_no_pk_table = true
+```
+
 ## Why not other rivers?
 
 Although there are some other MySQL rivers for Elasticsearch, like [elasticsearch-river-jdbc](https://github.com/jprante/elasticsearch-river-jdbc), [elasticsearch-river-mysql](https://github.com/scharron/elasticsearch-river-mysql), I still want to build a new one with Go, why?
