@@ -25,6 +25,12 @@ type riverTestSuite struct {
 	r *River
 }
 
+type Assertion struct {
+	Arguments	interface{}
+	Expect		interface{}
+	Actual		interface{}
+}
+
 var _ = Suite(&riverTestSuite{})
 
 func (s *riverTestSuite) SetUpSuite(c *C) {
@@ -264,17 +270,6 @@ func testWaitSyncDone(c *C, r *River) {
 	c.Fatalf("wait 1s but still have %d items to be synced", len(r.syncCh))
 }
 
-func testBuildTable(c *C) {
-	c.Assert(buildTable("*"), Equals, ".*")
-	c.Assert(buildTable("table"), Equals, "table")
-}
-
-func testTableValidation(c *C) {
-	c.Assert(isValidTables([]string{"*"}), IsTrue)
-	c.Assert(isValidTables([]string{"table", "table2"}), IsTrue)
-	c.Assert(isValidTables([]string{"*", "table"}), IsFalse)
-}
-
 func (s *riverTestSuite) TestRiver(c *C) {
 	s.testPrepareData(c)
 
@@ -361,7 +356,29 @@ func (s *riverTestSuite) TestRiver(c *C) {
 		c.Assert(r.Found, Equals, true)
 		c.Assert(r.Source["es_title"], Equals, "hello")
 	}
+}
 
-	testBuildTable(c)
-	testTableValidation(c)
+func TestTableValidation(t *testing.T) {
+	tables := []Assertion{
+		{[]string{"*"},true, isValidTables([]string{"*"})},
+		{[]string{"table", "table2"}, true, isValidTables([]string{"table", "table2"})},
+		{[]string{"*", "table"}, false, isValidTables([]string{"*", "table"})}}
+
+	for _, table := range tables {
+		if table.Expect != table.Actual {
+			t.Errorf("\nTables: %s\nExpected: is %t\nbut: was %t\n", table.Arguments, table.Expect, table.Actual)
+		}
+	}
+}
+
+func TestBuildTable(t *testing.T) {
+	tables := []Assertion{
+		{"*", ".*", buildTable("*")},
+		{"table2", "table2", buildTable("table2")}}
+
+	for _, table := range tables {
+		if table.Expect != table.Actual {
+			t.Errorf("\nTable: %s\nExpected: is %s\nbut: was %s\n", table.Arguments, table.Expect, table.Actual)
+		}
+	}
 }
