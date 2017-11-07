@@ -150,16 +150,15 @@ filter = ["id", "name"]
 
 In the above example, we will only sync MySQL table tfiler's columns `id` and `name` to Elasticsearch. 
 
-## Ignore table without primary key
-When you sync table without primary key, you can see below error message.
+## Ignore table without a primary key
+When you sync table without a primary key, you can see below error message.
 ```
-.../go-mysql-elasticsearch/river/river.go:244: schema.table must have a PK for a column
+schema.table must have a PK for a column
 ```
-If you want to ignore table without primary key, you can ignore by adding this attribute to the *.toml.  
-
+You can ignore these tables in the configuration like:
 ```
-# Ignore table without primary key
-skip_non_pk = true
+# Ignore table without a primary key
+skip_no_pk_table = true
 ```
 
 ## Why not other rivers?

@@ -239,10 +239,10 @@ func (r *River) prepareRule() error {
 		}
 
 		if len(rule.TableInfo.PKColumns) == 0 {
-			if r.c.SkipNonPk == false {
+			if !r.c.SkipNoPkTable {
 				return errors.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
 			} else {
-				fmt.Printf("ignored table without primary key: %s\n", rule.TableInfo.Name)
+				log.Errorf("ignored table without a primary key: %s\n", rule.TableInfo.Name)
 			}
 		} else {
 			rules[key] = rule;

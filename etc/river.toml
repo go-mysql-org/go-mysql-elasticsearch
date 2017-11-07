@@ -40,7 +40,7 @@ bulk_size = 128
 flush_bulk_time = "200ms"
 
 # Ignore table without primary key
-skip_non_pk = false
+skip_no_pk_table = false
 
 # MySQL data source
 [[source]]

@@ -40,7 +40,7 @@ type Config struct {
 
 	FlushBulkTime TomlDuration `toml:"flush_bulk_time"`
 
-	SkipNonPk bool `toml:"skip_non_pk"`
+	SkipNoPkTable bool `toml:"skip_no_pk_table"`
 }
 
 func NewConfigWithFile(name string) (*Config, error) {
