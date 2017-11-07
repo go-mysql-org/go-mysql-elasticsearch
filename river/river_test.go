@@ -25,12 +25,6 @@ type riverTestSuite struct {
 	r *River
 }
 
-type Assertion struct {
-	Arguments	interface{}
-	Expect		interface{}
-	Actual		interface{}
-}
-
 var _ = Suite(&riverTestSuite{})
 
 func (s *riverTestSuite) SetUpSuite(c *C) {
@@ -359,26 +353,34 @@ func (s *riverTestSuite) TestRiver(c *C) {
 }
 
 func TestTableValidation(t *testing.T) {
-	tables := []Assertion{
-		{[]string{"*"},true, isValidTables([]string{"*"})},
-		{[]string{"table", "table2"}, true, isValidTables([]string{"table", "table2"})},
-		{[]string{"*", "table"}, false, isValidTables([]string{"*", "table"})}}
+	tables := []struct {
+		Tables []string
+		Expect bool
+	} {
+		{[]string{"*"}, true},
+		{[]string{"table", "table2"}, true},
+		{[]string{"*", "table"}, false},
+	}
 
 	for _, table := range tables {
-		if table.Expect != table.Actual {
-			t.Errorf("\nTables: %s\nExpected: is %t\nbut: was %t\n", table.Arguments, table.Expect, table.Actual)
+		if isValidTables(table.Tables) != table.Expect {
+			t.Errorf("\nTables: %s\nExpected: is %t\nbut: was %t\n", table.Tables, table.Expect, isValidTables(table.Tables))
 		}
 	}
 }
 
 func TestBuildTable(t *testing.T) {
-	tables := []Assertion{
-		{"*", ".*", buildTable("*")},
-		{"table2", "table2", buildTable("table2")}}
+	tables := []struct {
+		Table string
+		Expect string
+	} {
+		{"*", ".*"},
+		{"table2", "table2"},
+	}
 
 	for _, table := range tables {
-		if table.Expect != table.Actual {
-			t.Errorf("\nTable: %s\nExpected: is %s\nbut: was %s\n", table.Arguments, table.Expect, table.Actual)
+		if buildTable(table.Table) != table.Expect {
+			t.Errorf("\nTable: %s\nExpected: is \"%s\"\nbut: was \"%s\"\n", table.Table, table.Expect, buildTable(table.Table))
 		}
 	}
 }
