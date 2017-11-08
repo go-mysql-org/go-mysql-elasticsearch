@@ -351,3 +351,36 @@ func (s *riverTestSuite) TestRiver(c *C) {
 		c.Assert(r.Source["es_title"], Equals, "hello")
 	}
 }
+
+func TestTableValidation(t *testing.T) {
+	tables := []struct {
+		Tables []string
+		Expect bool
+	} {
+		{[]string{"*"}, true},
+		{[]string{"table", "table2"}, true},
+		{[]string{"*", "table"}, false},
+	}
+
+	for _, table := range tables {
+		if isValidTables(table.Tables) != table.Expect {
+			t.Errorf("Tables: %s, Expected: is %t, but: was %t", table.Tables, table.Expect, isValidTables(table.Tables))
+		}
+	}
+}
+
+func TestBuildTable(t *testing.T) {
+	tables := []struct {
+		Table string
+		Expect string
+	} {
+		{"*", ".*"},
+		{"table2", "table2"},
+	}
+
+	for _, table := range tables {
+		if buildTable(table.Table) != table.Expect {
+			t.Errorf("Table: %s, Expected: is \"%s\", but: was \"%s\"", table.Table, table.Expect, buildTable(table.Table))
+		}
+	}
+}

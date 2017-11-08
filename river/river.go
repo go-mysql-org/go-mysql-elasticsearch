@@ -140,6 +140,10 @@ func (r *River) parseSource() (map[string][]string, error) {
 
 	// first, check sources
 	for _, s := range r.c.Sources {
+		if !isValidTables(s.Tables) {
+			return nil, errors.Errorf("wildcard * is not allowed for multiple tables")
+		}
+
 		for _, table := range s.Tables {
 			if len(s.Schema) == 0 {
 				return nil, errors.Errorf("empty schema not allowed for source")
@@ -153,7 +157,7 @@ func (r *River) parseSource() (map[string][]string, error) {
 				tables := []string{}
 
 				sql := fmt.Sprintf(`SELECT table_name FROM information_schema.tables WHERE
-                    table_name RLIKE "%s" AND table_schema = "%s";`, table, s.Schema)
+					table_name RLIKE "%s" AND table_schema = "%s";`, buildTable(table), s.Schema)
 
 				res, err := r.canal.Execute(sql)
 				if err != nil {
@@ -284,4 +288,22 @@ func (r *River) Close() {
 	r.master.Close()
 
 	r.wg.Wait()
+}
+
+func isValidTables(tables[] string) bool {
+	if len(tables) > 1 {
+		for _, table := range tables {
+			if table == "*" {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func buildTable(table string) string {
+	if table == "*" {
+		return "." + table
+	}
+	return table
 }
