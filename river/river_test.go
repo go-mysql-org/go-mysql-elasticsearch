@@ -364,7 +364,7 @@ func TestTableValidation(t *testing.T) {
 
 	for _, table := range tables {
 		if isValidTables(table.Tables) != table.Expect {
-			t.Errorf("\nTables: %s\nExpected: is %t\nbut: was %t\n", table.Tables, table.Expect, isValidTables(table.Tables))
+			t.Errorf("Tables: %s, Expected: is %t, but: was %t", table.Tables, table.Expect, isValidTables(table.Tables))
 		}
 	}
 }
@@ -380,7 +380,7 @@ func TestBuildTable(t *testing.T) {
 
 	for _, table := range tables {
 		if buildTable(table.Table) != table.Expect {
-			t.Errorf("\nTable: %s\nExpected: is \"%s\"\nbut: was \"%s\"\n", table.Table, table.Expect, buildTable(table.Table))
+			t.Errorf("Table: %s, Expected: is \"%s\", but: was \"%s\"", table.Table, table.Expect, buildTable(table.Table))
 		}
 	}
 }
