@@ -2,6 +2,7 @@ package river
 
 import (
 	"github.com/siddontang/go-mysql/schema"
+	"strings"
 )
 
 // If you want to sync MySQL data into elasticsearch, you must set a rule to let use know how to do it.
@@ -27,12 +28,18 @@ type Rule struct {
 	Fileter []string `toml:"filter"`
 }
 
-func newDefaultRule(schema string, table string) *Rule {
+func newDefaultRule(schema string, table string, c *Config) *Rule {
 	r := new(Rule)
 
 	r.Schema = schema
 	r.Table = table
-	r.Index = table
+
+	if c.InsertSameIndexSameSchema {
+		r.Index = strings.ToLower(schema)
+	} else {
+		r.Index = table
+	}
+
 	r.Type = table
 	r.FieldMapping = make(map[string]string)
 

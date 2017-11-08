@@ -171,6 +171,13 @@ You can ignore these tables in the configuration like:
 skip_no_pk_table = true
 ```
 
+## Insert data into the same index for the same schema
+By default, go-mysql-elasticsearch will use MySQL table name as the Elasticserach's index and type name, but if you want to insert data into the same index for the same schema, you should set like blow
+```
+# if you want to insert data into the same index for the same schema
+insert_same_index_same_schema = true
+```
+
 ## Why not other rivers?
 
 Although there are some other MySQL rivers for Elasticsearch, like [elasticsearch-river-jdbc](https://github.com/jprante/elasticsearch-river-jdbc), [elasticsearch-river-mysql](https://github.com/scharron/elasticsearch-river-mysql), I still want to build a new one with Go, why?

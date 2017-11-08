@@ -41,6 +41,7 @@ type Config struct {
 	FlushBulkTime TomlDuration `toml:"flush_bulk_time"`
 
 	SkipNoPkTable bool `toml:"skip_no_pk_table"`
+	InsertSameIndexSameSchema bool `toml:"insert_same_index_same_schema"`
 }
 
 func NewConfigWithFile(name string) (*Config, error) {

@@ -42,6 +42,9 @@ flush_bulk_time = "200ms"
 # Ignore table without primary key
 skip_no_pk_table = false
 
+# if you want to insert data into the same index for the same schema
+insert_same_index_same_schema = false
+
 # MySQL data source
 [[source]]
 schema = "test"

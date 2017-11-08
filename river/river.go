@@ -131,7 +131,7 @@ func (r *River) newRule(schema, table string) error {
 		return errors.Errorf("duplicate source %s, %s defined in config", schema, table)
 	}
 
-	r.rules[key] = newDefaultRule(schema, table)
+	r.rules[key] = newDefaultRule(schema, table, r.c)
 	return nil
 }
 
