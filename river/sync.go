@@ -57,7 +57,7 @@ func (h *eventHandler) OnDDL(nextPos mysql.Position, e *replication.QueryEvent) 
 		mb[1] = e.Schema
 	}
 
-	log.Infof("re-prepare table %s.%s rule info, ddl: %s", mb[1], mb[2], e.Query)
+	log.Infof("re-prepare table %s.%s info, ddl: %s", mb[1], mb[2], e.Query)
 	_, err := h.r.canal.GetTable(string(mb[1]), string(mb[2]))
 	if err != nil {
 		log.Errorf("get %s.%s information err: %v", mb[1], mb[2], err)
