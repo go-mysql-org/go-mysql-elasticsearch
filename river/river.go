@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
-	"github.com/ngaut/log"
+	log "github.com/sirupsen/logrus"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/canal"
 )
@@ -140,6 +140,10 @@ func (r *River) parseSource() (map[string][]string, error) {
 
 	// first, check sources
 	for _, s := range r.c.Sources {
+		if !isValidTables(s.Tables) {
+			return nil, errors.Errorf("wildcard * is not allowed for multiple tables")
+		}
+
 		for _, table := range s.Tables {
 			if len(s.Schema) == 0 {
 				return nil, errors.Errorf("empty schema not allowed for source")
@@ -153,7 +157,7 @@ func (r *River) parseSource() (map[string][]string, error) {
 				tables := []string{}
 
 				sql := fmt.Sprintf(`SELECT table_name FROM information_schema.tables WHERE
-                    table_name RLIKE "%s" AND table_schema = "%s";`, table, s.Schema)
+					table_name RLIKE "%s" AND table_schema = "%s";`, buildTable(table), s.Schema)
 
 				res, err := r.canal.Execute(sql)
 				if err != nil {
@@ -232,16 +236,23 @@ func (r *River) prepareRule() error {
 		}
 	}
 
-	for _, rule := range r.rules {
+	rules := make(map[string]*Rule)
+	for key, rule := range r.rules {
 		if rule.TableInfo, err = r.canal.GetTable(rule.Schema, rule.Table); err != nil {
 			return errors.Trace(err)
 		}
 
 		if len(rule.TableInfo.PKColumns) == 0 {
-			return errors.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
+			if !r.c.SkipNoPkTable {
+				return errors.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
+			} else {
+				log.Errorf("ignored table without a primary key: %s\n", rule.TableInfo.Name)
+			}
+		} else {
+			rules[key] = rule;
 		}
-
 	}
+	r.rules = rules
 
 	return nil
 }
@@ -277,4 +288,22 @@ func (r *River) Close() {
 	r.master.Close()
 
 	r.wg.Wait()
+}
+
+func isValidTables(tables[] string) bool {
+	if len(tables) > 1 {
+		for _, table := range tables {
+			if table == "*" {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func buildTable(table string) string {
+	if table == "*" {
+		return "." + table
+	}
+	return table
 }

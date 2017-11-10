@@ -40,6 +40,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
             title VARCHAR(256),
             content VARCHAR(256),
             mylist VARCHAR(256),
+            mydate INT(10),
             tenum ENUM("e1", "e2", "e3"),
             tset SET("a", "b", "c"),
             tbit BIT(1) default 1,
@@ -93,7 +94,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 			Table:        "test_river",
 			Index:        "river",
 			Type:         "river",
-			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
+			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list", "mydate": ",date"},
 		},
 
 		&Rule{Schema: "test",
@@ -101,14 +102,14 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 			Index:        "river",
 			Type:         "river",
 			ID:           []string{"id", "title"},
-			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
+			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list", "mydate": ",date"},
 		},
 
 		&Rule{Schema: "test",
 			Table:        "test_river_[0-9]{4}",
 			Index:        "river",
 			Type:         "river",
-			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list"},
+			FieldMapping: map[string]string{"title": "es_title", "mylist": "es_mylist,list", "mydate": ",date"},
 		},
 
 		&Rule{Schema: "test",
@@ -161,6 +162,7 @@ parent = "pid"
     [rule.field]
     title = "es_title"
     mylist = "es_mylist,list"
+    mydate = ",date"
 
 
 [[rule]]
@@ -173,6 +175,7 @@ id = ["id", "title"]
     [rule.field]
     title = "es_title"
     mylist = "es_mylist,list"
+    mydate = ",date"
 
 
 [[rule]]
@@ -184,6 +187,7 @@ type = "river"
     [rule.field]
     title = "es_title"
     mylist = "es_mylist,list"
+    mydate = ",date"
 
 [[rule]]
 schema = "test"
@@ -218,7 +222,7 @@ func (s *riverTestSuite) testPrepareData(c *C) {
 	}
 
 	datetime := time.Now().Format(mysql.TimeFormat)
-	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tdatetime) VALUES (?, ?, ?, ?, ?, ?)", 16, "test datetime", "hello go 16", "e1", "a,b", datetime)
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tdatetime, mydate) VALUES (?, ?, ?, ?, ?, ?, ?)", 16, "test datetime", "hello go 16", "e1", "a,b", datetime, 1458131094)
 }
 
 func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
@@ -239,6 +243,7 @@ func (s *riverTestSuite) testElasticMapping(c *C) *elastic.MappingResponse {
 	c.Assert(err, IsNil)
 
 	c.Assert(r.Mapping[index].Mappings[docType].Properties["tdatetime"].Type, Equals, "date")
+	c.Assert(r.Mapping[index].Mappings[docType].Properties["mydate"].Type, Equals, "date")
 	return r
 }
 
@@ -344,5 +349,38 @@ func (s *riverTestSuite) TestRiver(c *C) {
 		r = s.testElasticGet(c, fmt.Sprintf("%d", 5+i))
 		c.Assert(r.Found, Equals, true)
 		c.Assert(r.Source["es_title"], Equals, "hello")
+	}
+}
+
+func TestTableValidation(t *testing.T) {
+	tables := []struct {
+		Tables []string
+		Expect bool
+	} {
+		{[]string{"*"}, true},
+		{[]string{"table", "table2"}, true},
+		{[]string{"*", "table"}, false},
+	}
+
+	for _, table := range tables {
+		if isValidTables(table.Tables) != table.Expect {
+			t.Errorf("Tables: %s, Expected: is %t, but: was %t", table.Tables, table.Expect, isValidTables(table.Tables))
+		}
+	}
+}
+
+func TestBuildTable(t *testing.T) {
+	tables := []struct {
+		Table string
+		Expect string
+	} {
+		{"*", ".*"},
+		{"table2", "table2"},
+	}
+
+	for _, table := range tables {
+		if buildTable(table.Table) != table.Expect {
+			t.Errorf("Table: %s, Expected: is \"%s\", but: was \"%s\"", table.Table, table.Expect, buildTable(table.Table))
+		}
 	}
 }

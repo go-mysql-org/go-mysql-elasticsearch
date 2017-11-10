@@ -46,6 +46,16 @@ tables = ["t3", t4]
 
 `schema` is the database name, and `tables` includes the table need to be synced.
 
+If you want to sync **all table in database**, you can use **asterisk(\*)**.  
+```
+[[source]]
+schema = "test"
+tables = ["*"]
+
+# When using an asterisk, it is not allowed to sync multiple tables
+# tables = ["*", "table"]
+```
+
 ## Rule
 
 By default, go-mysql-elasticsearch will use MySQL table name as the Elasticserach's index and type name, use MySQL table field name as the Elasticserach's field name.
@@ -89,6 +99,9 @@ type = "t"
 
     // This will map column title to elastic search title and use array type
     title=",list"
+
+    // If the created_time field type is "int", and you want to convert it to "date" type in es, you can do it as below
+    created_time=",date"
 ```
 
 Modifier "list" will translates a mysql string field like "a,b,c" on an elastic array type '{"a", "b", "c"}' this is specially useful if you need to use those fields on filtering on elasticsearch.
@@ -146,6 +159,17 @@ filter = ["id", "name"]
 ```
 
 In the above example, we will only sync MySQL table tfiler's columns `id` and `name` to Elasticsearch. 
+
+## Ignore table without a primary key
+When you sync table without a primary key, you can see below error message.
+```
+schema.table must have a PK for a column
+```
+You can ignore these tables in the configuration like:
+```
+# Ignore table without a primary key
+skip_no_pk_table = true
+```
 
 ## Why not other rivers?
 

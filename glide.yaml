@@ -1,26 +1,19 @@
 package: github.com/siddontang/go-mysql-elasticsearch
 import:
 - package: github.com/BurntSushi/toml
-  version: 056c9bc7be7190eaa7715723883caffa5f8fa3e4
+  version: ^0.3.0
 - package: github.com/juju/errors
-  version: 6f54ff6318409d31ff16261533ce2c8381a4fd5d
-- package: github.com/satori/go.uuid
-  version: ^1.1.0
 - package: github.com/siddontang/go-mysql
-  version: 799150b6d0e9a3d786b015f0d77fcb3ae9c717ff
   subpackages:
   - canal
-  - client
-  - dump
   - mysql
-  - packet
   - replication
   - schema
 - package: github.com/siddontang/go
-  version: 354e14e6c093c661abb29fd28403b3c19cff5514
   subpackages:
-  - hack
   - ioutil2
   - sync2
+- package: github.com/sirupsen/logrus
+  version: ^1.0.3
+testImport:
 - package: github.com/pingcap/check
-  version: ce8a2f822ab1e245a4eefcef2996531c79c943f1
