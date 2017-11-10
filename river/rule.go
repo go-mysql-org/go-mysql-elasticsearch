@@ -23,8 +23,8 @@ type Rule struct {
 	// MySQL table information
 	TableInfo *schema.Table
 
-	//only MySQL fields in fileter will be synced , default sync all fields
-	Fileter []string `toml:"filter"`
+	//only MySQL fields in filter will be synced , default sync all fields
+	Filter []string `toml:"filter"`
 }
 
 func newDefaultRule(schema string, table string) *Rule {
@@ -56,11 +56,11 @@ func (r *Rule) prepare() error {
 }
 
 func (r *Rule) CheckFilter(field string) bool {
-	if r.Fileter == nil {
+	if r.Filter == nil {
 		return true
 	}
 
-	for _, f := range r.Fileter {
+	for _, f := range r.Filter {
 		if f == field {
 			return true
 		}
