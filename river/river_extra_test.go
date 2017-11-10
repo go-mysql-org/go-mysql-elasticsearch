@@ -113,7 +113,7 @@ func (s *riverTestSuite) TestRiverWithParent(c *C) {
 
 	s.testPrepareExtraData(c)
 
-	river.Start()
+	go func() { river.Run() }()
 
 	testWaitSyncDone(c, river)
 

@@ -14,6 +14,8 @@ import (
 )
 
 var ErrTableNotExist = errors.New("table is not exist")
+var ErrMissingTableMeta = errors.New("missing table meta")
+var HAHealthCheckSchema = "mysql.ha_health_check"
 
 const (
 	TYPE_NUMBER    = iota + 1 // tinyint, smallint, mediumint, int, bigint, year
@@ -282,7 +284,7 @@ func (ta *Table) fetchIndexesViaSqlDB(conn *sql.DB) error {
 
 	for r.Next() {
 		var indexName, colName string
-		var cardinality uint64
+		var cardinality interface{}
 
 		err := r.Scan(
 			&unused,
@@ -308,10 +310,38 @@ func (ta *Table) fetchIndexesViaSqlDB(conn *sql.DB) error {
 			currentName = indexName
 		}
 
-		currentIndex.AddColumn(colName, cardinality)
+		c := toUint64(cardinality)
+		currentIndex.AddColumn(colName, c)
 	}
 
 	return ta.fetchPrimaryKeyColumns()
+}
+
+func toUint64(i interface{}) uint64 {
+	switch i := i.(type) {
+	case int:
+		return uint64(i)
+	case int8:
+		return uint64(i)
+	case int16:
+		return uint64(i)
+	case int32:
+		return uint64(i)
+	case int64:
+		return uint64(i)
+	case uint:
+		return uint64(i)
+	case uint8:
+		return uint64(i)
+	case uint16:
+		return uint64(i)
+	case uint32:
+		return uint64(i)
+	case uint64:
+		return uint64(i)
+	}
+
+	return 0
 }
 
 func (ta *Table) fetchPrimaryKeyColumns() error {

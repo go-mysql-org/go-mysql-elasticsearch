@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/juju/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/satori/go.uuid"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go-mysql/schema"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -39,7 +39,6 @@ func (c *Canal) startSyncer() (*replication.BinlogStreamer, error) {
 }
 
 func (c *Canal) runSyncBinlog() error {
-
 	s, err := c.startSyncer()
 	if err != nil {
 		return err
@@ -78,10 +77,15 @@ func (c *Canal) runSyncBinlog() error {
 		case *replication.RowsEvent:
 			// we only focus row based event
 			err = c.handleRowsEvent(ev)
-			if err != nil && errors.Cause(err) != schema.ErrTableNotExist {
-				// We can ignore table not exist error
-				log.Errorf("handle rows event at (%s, %d) error %v", pos.Name, curPos, err)
-				return errors.Trace(err)
+			if err != nil {
+				e := errors.Cause(err)
+				// if error is not ErrExcludedTable or ErrTableNotExist or ErrMissingTableMeta, stop canal
+				if e != ErrExcludedTable &&
+					e != schema.ErrTableNotExist &&
+					e != schema.ErrMissingTableMeta {
+					log.Errorf("handle rows event at (%s, %d) error %v", pos.Name, curPos, err)
+					return errors.Trace(err)
+				}
 			}
 			continue
 		case *replication.XIDEvent:
@@ -92,7 +96,7 @@ func (c *Canal) runSyncBinlog() error {
 			}
 		case *replication.MariadbGTIDEvent:
 			// try to save the GTID later
-			gtid := e.GTID
+			gtid := &e.GTID
 			c.master.UpdateGTID(gtid)
 			if err := c.eventHandler.OnGTID(gtid); err != nil {
 				return errors.Trace(err)
@@ -146,7 +150,7 @@ func (c *Canal) handleRowsEvent(e *replication.BinlogEvent) error {
 
 	t, err := c.GetTable(schema, table)
 	if err != nil {
-		return errors.Trace(err)
+		return err
 	}
 	var action string
 	switch e.Header.EventType {

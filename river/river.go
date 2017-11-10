@@ -7,9 +7,9 @@ import (
 	"sync"
 
 	"github.com/juju/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/canal"
+	log "github.com/sirupsen/logrus"
 )
 
 // In Elasticsearch, river is a pluggable service within Elasticsearch pulling data then indexing it into Elasticsearch.
@@ -249,7 +249,7 @@ func (r *River) prepareRule() error {
 				log.Errorf("ignored table without a primary key: %s\n", rule.TableInfo.Name)
 			}
 		} else {
-			rules[key] = rule;
+			rules[key] = rule
 		}
 	}
 	r.rules = rules
@@ -261,12 +261,13 @@ func ruleKey(schema string, table string) string {
 	return fmt.Sprintf("%s:%s", schema, table)
 }
 
-func (r *River) Start() error {
+// Run syncs the data from MySQL and inserts to ES.
+func (r *River) Run() error {
 	r.wg.Add(1)
 	go r.syncLoop()
 
 	pos := r.master.Position()
-	if err := r.canal.StartFrom(pos); err != nil {
+	if err := r.canal.RunFrom(pos); err != nil {
 		log.Errorf("start canal err %v", err)
 		return errors.Trace(err)
 	}
@@ -290,7 +291,7 @@ func (r *River) Close() {
 	r.wg.Wait()
 }
 
-func isValidTables(tables[] string) bool {
+func isValidTables(tables []string) bool {
 	if len(tables) > 1 {
 		for _, table := range tables {
 			if table == "*" {

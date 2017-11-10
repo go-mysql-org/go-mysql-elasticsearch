@@ -83,7 +83,11 @@ func main() {
 		return
 	}
 
-	r.Start()
+	done := make(chan struct{}, 1)
+	go func() {
+		r.Run()
+		done <- struct{}{}
+	}()
 
 	select {
 	case n := <-sc:
@@ -93,4 +97,5 @@ func main() {
 	}
 
 	r.Close()
+	<-done
 }
