@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
+	"regexp"
 
 	"github.com/juju/errors"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
@@ -51,12 +52,16 @@ func (h *eventHandler) OnRotate(e *replication.RotateEvent) error {
 }
 
 func (h *eventHandler) OnDDL(nextPos mysql.Position, e *replication.QueryEvent) error {
-	log.Info("re-prepare rule info")
-	h.r.c.Sources = nil
-	err := h.r.prepareRule()
+	mb := checkRenameTable(e)
+	if len(mb[1]) == 0 {
+		mb[1] = e.Schema
+	}
+
+	log.Infof("re-prepare table %s.%s rule info", mb[1], mb[2])
+	_, err := h.r.canal.GetTable(string(mb[1]), string(mb[2]))
 	if err != nil {
-		log.Errorf("re-prepare rule error %s\n", err.Error())
-		return err
+		log.Errorf("get %s.%s information err: %v", mb[1], mb[2], err)
+		return errors.Trace(err)
 	}
 
 	h.r.syncCh <- posSaver{nextPos, true}
@@ -511,4 +516,19 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 		fieldValue = r.makeReqColumnData(col, value)
 	}
 	return fieldValue
+}
+
+//copy from siddontang/go-mysql/canal/sync.go
+func checkRenameTable(e *replication.QueryEvent) [][]byte {
+	var (
+		expAlterTable  = regexp.MustCompile("(?i)^ALTER\\sTABLE\\s.*?`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}\\s.*")
+		expRenameTable = regexp.MustCompile("(?i)^RENAME\\sTABLE.*TO\\s.*?`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}$")
+	)
+
+	var mb = [][]byte{}
+	if mb = expAlterTable.FindSubmatch(e.Query); mb != nil {
+		return mb
+	}
+	mb = expRenameTable.FindSubmatch(e.Query)
+	return mb
 }
