@@ -191,6 +191,30 @@ func (r *River) parseSource() (map[string][]string, error) {
 	return wildTables, nil
 }
 
+func (r *River) prepareTableRule(db string, table string) error {
+	t, err := r.canal.GetTable(db, table)
+	if err != nil {
+		return err
+	}
+
+	key := ruleKey(t.Schema, t.Name)
+	delete(r.rules, key)
+
+	err = r.newRule(t.Schema, t.Name)
+	if err != nil {
+		return err
+	}
+
+	for _, rule := range r.c.Rules {
+		if rule.Table == table {
+			rule.prepare()
+			rule.TableInfo = t
+			r.rules[key] = rule
+		}
+	}
+	return nil
+}
+
 func (r *River) prepareRule() error {
 	wildtables, err := r.parseSource()
 	if err != nil {
