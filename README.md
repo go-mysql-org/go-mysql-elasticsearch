@@ -71,6 +71,7 @@ table = "t1"
 index = "t"
 type = "t"
 parent = "parent_id"
+id = ["id"]
 
     [rule.field]
     mysql = "title"
