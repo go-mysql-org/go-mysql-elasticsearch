@@ -267,7 +267,7 @@ func testWaitSyncDone(c *C, r *River) {
 func (s *riverTestSuite) TestRiver(c *C) {
 	s.testPrepareData(c)
 
-	s.r.Start()
+	go func() { s.r.Run() }()
 
 	testWaitSyncDone(c, s.r)
 
@@ -356,7 +356,7 @@ func TestTableValidation(t *testing.T) {
 	tables := []struct {
 		Tables []string
 		Expect bool
-	} {
+	}{
 		{[]string{"*"}, true},
 		{[]string{"table", "table2"}, true},
 		{[]string{"*", "table"}, false},
@@ -371,9 +371,9 @@ func TestTableValidation(t *testing.T) {
 
 func TestBuildTable(t *testing.T) {
 	tables := []struct {
-		Table string
+		Table  string
 		Expect string
-	} {
+	}{
 		{"*", ".*"},
 		{"table2", "table2"},
 	}
