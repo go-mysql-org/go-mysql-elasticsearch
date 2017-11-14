@@ -1,6 +1,7 @@
 package river
 
 import (
+	"strings"
 	"context"
 	"fmt"
 	"regexp"
@@ -258,7 +259,7 @@ func (r *River) prepareRule() error {
 }
 
 func ruleKey(schema string, table string) string {
-	return fmt.Sprintf("%s:%s", schema, table)
+	return strings.ToLower(fmt.Sprintf("%s:%s", schema, table))
 }
 
 // Run syncs the data from MySQL and inserts to ES.
