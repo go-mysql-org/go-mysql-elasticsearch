@@ -1,6 +1,8 @@
 package river
 
 import (
+	"strings"
+
 	"github.com/siddontang/go-mysql/schema"
 )
 
@@ -8,12 +10,12 @@ import (
 // The mapping rule may thi: schema + table <-> index + document type.
 // schema and table is for MySQL, index and document type is for Elasticsearch.
 type Rule struct {
-	Schema string `toml:"schema"`
-	Table  string `toml:"table"`
-	Index  string `toml:"index"`
-	Type   string `toml:"type"`
-	Parent string `toml:"parent"`
-	ID []string `toml:"id"`
+	Schema string   `toml:"schema"`
+	Table  string   `toml:"table"`
+	Index  string   `toml:"index"`
+	Type   string   `toml:"type"`
+	Parent string   `toml:"parent"`
+	ID     []string `toml:"id"`
 
 	// Default, a MySQL table field name is mapped to Elasticsearch field name.
 	// Sometimes, you want to use different name, e.g, the MySQL file name is title,
@@ -51,6 +53,11 @@ func (r *Rule) prepare() error {
 	if len(r.Type) == 0 {
 		r.Type = r.Index
 	}
+
+	// ES must use a lower-case Type
+	// Here we also use for Index
+	r.Index = strings.ToLower(r.Index)
+	r.Type = strings.ToLower(r.Type)
 
 	return nil
 }
