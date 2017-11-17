@@ -34,8 +34,11 @@ func newDefaultRule(schema string, table string) *Rule {
 
 	r.Schema = schema
 	r.Table = table
-	r.Index = table
-	r.Type = table
+
+	lowerTable := strings.ToLower(table)
+	r.Index = lowerTable
+	r.Type = lowerTable
+
 	r.FieldMapping = make(map[string]string)
 
 	return r

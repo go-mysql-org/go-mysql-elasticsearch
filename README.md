@@ -58,9 +58,11 @@ tables = ["*"]
 
 ## Rule
 
-By default, go-mysql-elasticsearch will use MySQL table name as the Elasticserach's index and type name, use MySQL table field name as the Elasticserach's field name.
+By default, go-mysql-elasticsearch will use MySQL table name as the Elasticserach's index and type name, use MySQL table field name as the Elasticserach's field name.  
 e.g, if a table named blog, the default index and type in Elasticserach are both named blog, if the table field named title,
 the default field name is also named title.
+
+Notice: go-mysql-elasticsearch will use the lower-case name for the ES index and type. E.g, if your table named BLOG, the ES index and type are both named blog.
 
 Rule can let you change this name mapping. Rule format in config file is below:
 
