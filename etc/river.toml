@@ -5,6 +5,8 @@ my_user = "root"
 my_pass = ""
 my_charset = "utf8"
 
+# Set true when elasticsearch use https
+#es_https = false
 # Elasticsearch address
 es_addr = "127.0.0.1:9200"
 # Elasticsearch user and password, maybe set by shield, nginx, or x-pack
