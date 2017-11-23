@@ -71,6 +71,7 @@ func NewRiver(c *Config) (*River, error) {
 	cfg.Addr = r.c.ESAddr
 	cfg.User = r.c.ESUser
 	cfg.Password = r.c.ESPassword
+	cfg.Https = r.c.ESHttps
 	r.es = elastic.NewClient(cfg)
 
 	r.st = &stat{r: r}

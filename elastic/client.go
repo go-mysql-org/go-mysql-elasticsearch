@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"crypto/tls"
 
 	"github.com/juju/errors"
 )
@@ -14,6 +15,7 @@ import (
 // Although there are many Elasticsearch clients with Go, I still want to implement one by myself.
 // Because we only need some very simple usages.
 type Client struct {
+	Protocol string
 	Addr     string
 	User     string
 	Password string
@@ -22,6 +24,7 @@ type Client struct {
 }
 
 type ClientConfig struct {
+	Https    bool
 	Addr     string
 	User     string
 	Password string
@@ -34,7 +37,16 @@ func NewClient(conf *ClientConfig) *Client {
 	c.User = conf.User
 	c.Password = conf.Password
 
-	c.c = &http.Client{}
+	if conf.Https {
+		c.Protocol = "https"
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		c.c = &http.Client{Transport: tr}
+	} else {
+		c.Protocol = "http"
+		c.c = &http.Client{}
+	}
 
 	return c
 }
@@ -237,7 +249,7 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 }
 
 func (c *Client) CreateMapping(index string, docType string, mapping map[string]interface{}) error {
-	reqUrl := fmt.Sprintf("http://%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index))
 
 	r, err := c.Do("HEAD", reqUrl, nil)
@@ -256,7 +268,7 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 		return errors.Errorf("Error: %s, code: %d", http.StatusText(r.Code), r.Code)
 	}
 
-	reqUrl = fmt.Sprintf("http://%s/%s/%s/_mapping", c.Addr,
+	reqUrl = fmt.Sprintf("%s://%s/%s/%s/_mapping", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType))
 
@@ -265,7 +277,7 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 }
 
 func (c *Client) GetMapping(index string, docType string) (*MappingResponse, error){
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/_mapping", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/_mapping", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType))
 	buf := bytes.NewBuffer(nil)
@@ -293,7 +305,7 @@ func (c *Client) GetMapping(index string, docType string) (*MappingResponse, err
 }
 
 func (c *Client) DeleteIndex(index string) error {
-	reqUrl := fmt.Sprintf("http://%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index))
 
 	r, err := c.Do("DELETE", reqUrl, nil)
@@ -309,7 +321,7 @@ func (c *Client) DeleteIndex(index string) error {
 }
 
 func (c *Client) Get(index string, docType string, id string) (*Response, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType),
 		url.QueryEscape(id))
@@ -319,7 +331,7 @@ func (c *Client) Get(index string, docType string, id string) (*Response, error)
 
 // Can use Update to create or update the data
 func (c *Client) Update(index string, docType string, id string, data map[string]interface{}) error {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType),
 		url.QueryEscape(id))
@@ -337,7 +349,7 @@ func (c *Client) Update(index string, docType string, id string, data map[string
 }
 
 func (c *Client) Exists(index string, docType string, id string) (bool, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType),
 		url.QueryEscape(id))
@@ -351,7 +363,7 @@ func (c *Client) Exists(index string, docType string, id string) (bool, error) {
 }
 
 func (c *Client) Delete(index string, docType string, id string) error {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType),
 		url.QueryEscape(id))
@@ -370,20 +382,20 @@ func (c *Client) Delete(index string, docType string, id string) error {
 
 // only support parent in 'Bulk' related apis
 func (c *Client) Bulk(items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/_bulk", c.Addr)
+	reqUrl := fmt.Sprintf("%s://%s/_bulk", c.Protocol, c.Addr)
 
 	return c.DoBulk(reqUrl, items)
 }
 
 func (c *Client) IndexBulk(index string, items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/_bulk", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/_bulk", c.Protocol, c.Addr,
 		url.QueryEscape(index))
 
 	return c.DoBulk(reqUrl, items)
 }
 
 func (c *Client) IndexTypeBulk(index string, docType string, items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/_bulk", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/_bulk", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType))
 
