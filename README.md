@@ -174,6 +174,27 @@ You can ignore these tables in the configuration like:
 skip_no_pk_table = true
 ```
 
+## Convert and Save fields
+We provides options to convert and save fileds.
+
+* Saving fields to lower case
+```
+# Set true when saving fileds to lower case
+to_lower_fields = true
+```
+
+* Saving fields to camel case
+```
+# Set delimiter when saving fileds to lower case
+camel_case_delimiter = "_"
+```
+
+Note: You can't set true at same time both to_lower_columns and camel_case_delimiter.  
+If you ignore this note, you would meet below error.
+```
+You can't set true at same time both to_lower_columns and camel_case_delimiter.
+```
+
 ## Why not other rivers?
 
 Although there are some other MySQL rivers for Elasticsearch, like [elasticsearch-river-jdbc](https://github.com/jprante/elasticsearch-river-jdbc), [elasticsearch-river-mysql](https://github.com/scharron/elasticsearch-river-mysql), I still want to build a new one with Go, why?

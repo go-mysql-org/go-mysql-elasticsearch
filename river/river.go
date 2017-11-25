@@ -67,6 +67,10 @@ func NewRiver(c *Config) (*River, error) {
 		return nil, errors.Trace(err)
 	}
 
+	if r.c.ToLowerColumns && r.c.CamelCaseDelimiter != "" {
+		return nil, errors.New("You can't set both to_lower_fields and camel_case_delimiter at same time.")
+	}
+
 	cfg := new(elastic.ClientConfig)
 	cfg.Addr = r.c.ESAddr
 	cfg.User = r.c.ESUser
