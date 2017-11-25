@@ -66,6 +66,22 @@ func (h *eventHandler) OnRow(e *canal.RowsEvent) error {
 		return nil
 	}
 
+
+	// It prevents the field from being converted again
+	if !sliceContainsString(h.r.c.ConvertedTable, ruleKey(rule.TableInfo.Schema, rule.TableInfo.Name)) {
+		if h.r.c.ToLowerColumns || h.r.c.CamelCaseDelimiter != "" {
+			for i, column := range rule.TableInfo.Columns {
+				if h.r.c.ToLowerColumns {
+					rule.TableInfo.Columns[i].Name = strings.ToLower(column.Name)
+				} else {
+					rule.TableInfo.Columns[i].Name = toCamelCase(column.Name, h.r.c.CamelCaseDelimiter)
+				}
+			}
+
+			h.r.c.ConvertedTable = append(h.r.c.ConvertedTable, ruleKey(rule.TableInfo.Schema, rule.TableInfo.Name))
+		}
+	}
+
 	var reqs []*elastic.BulkRequest
 	var err error
 	switch e.Action {
@@ -491,4 +507,35 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 		fieldValue = r.makeReqColumnData(col, value)
 	}
 	return fieldValue
+}
+
+func sliceContainsString(strs []string, find string) bool {
+	for _, found := range strs {
+		if found == find {
+			return true
+		}
+	}
+	return false
+}
+
+func toCamelCase(str string, delimiter string) string {
+	return stringArrayToCamelCase(splitToDelimiter(str, delimiter))
+}
+
+func splitToDelimiter(str string, delimiter string) []string {
+	toLowerStr := strings.ToLower(str)
+	return strings.Split(toLowerStr, delimiter)
+}
+
+func stringArrayToCamelCase(strs[] string) string {
+	var camelCaseStr string
+	for i, str := range strs {
+		if i == 0 {
+			camelCaseStr = str
+		} else {
+			camelCaseStr += strings.Title(str)
+		}
+	}
+
+	return camelCaseStr
 }
