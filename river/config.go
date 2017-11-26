@@ -42,6 +42,11 @@ type Config struct {
 	FlushBulkTime TomlDuration `toml:"flush_bulk_time"`
 
 	SkipNoPkTable bool `toml:"skip_no_pk_table"`
+
+	ToLowerColumns bool `toml:"to_lower_fields"`
+
+	// It contains converted table(eg, lower case fields)
+	ConvertedTable []string
 }
 
 func NewConfigWithFile(name string) (*Config, error) {
