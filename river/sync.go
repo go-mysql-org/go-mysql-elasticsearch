@@ -66,6 +66,17 @@ func (h *eventHandler) OnRow(e *canal.RowsEvent) error {
 		return nil
 	}
 
+	if h.r.c.ToLowerColumns {
+		// It prevents the field from being converted again
+		if !sliceContainsString(h.r.c.ConvertedTable, ruleKey(rule.TableInfo.Schema, rule.TableInfo.Name)) {
+			for i, column := range rule.TableInfo.Columns {
+				rule.TableInfo.Columns[i].Name = strings.ToLower(column.Name)
+			}
+
+			h.r.c.ConvertedTable = append(h.r.c.ConvertedTable, ruleKey(rule.TableInfo.Schema, rule.TableInfo.Name))
+		}
+	}
+
 	var reqs []*elastic.BulkRequest
 	var err error
 	switch e.Action {
@@ -491,4 +502,14 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 		fieldValue = r.makeReqColumnData(col, value)
 	}
 	return fieldValue
+}
+
+
+func sliceContainsString(strs []string, find string) bool {
+	for _, found := range strs {
+		if found == find {
+			return true
+		}
+	}
+	return false
 }

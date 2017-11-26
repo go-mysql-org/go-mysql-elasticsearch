@@ -44,6 +44,9 @@ flush_bulk_time = "200ms"
 # Ignore table without primary key
 skip_no_pk_table = false
 
+# Set true when saving fileds to lower case
+#to_lower_fields = true
+
 # MySQL data source
 [[source]]
 schema = "test"
