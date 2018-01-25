@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,7 +28,9 @@ const (
 	fieldTypeList = "list"
 	// for the mysql int type to es date type
 	// set the [rule.field] created_time = ",date"
-	fieldTypeDate = "date"
+	fieldTypeDate   = "date"
+	fieldTypeGeoLat = "geo_lat"
+	fieldTypeGeoLon = "geo_lon"
 )
 
 type posSaver struct {
@@ -345,7 +348,6 @@ func (r *River) getFieldParts(k string, v string) (string, string, string) {
 func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values []interface{}) {
 	req.Data = make(map[string]interface{}, len(values))
 	req.Action = elastic.ActionIndex
-
 	for i, c := range rule.TableInfo.Columns {
 		if !rule.CheckFilter(c.Name) {
 			continue
@@ -355,9 +357,25 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 			mysql, elastic, fieldType := r.getFieldParts(k, v)
 			if mysql == c.Name {
 				mapped = true
-				req.Data[elastic] = r.getFieldValue(&c, fieldType, values[i])
+				if (fieldType == fieldTypeGeoLat) || (fieldType == fieldTypeGeoLon) {
+					if _, ok := req.Data[elastic]; !ok {
+						req.Data[elastic] = make(map[string]interface{})
+					}
+					md, ok := req.Data[elastic].(map[string]interface{})
+					if ok {
+						if fieldType == fieldTypeGeoLat {
+							md["lat"] = r.getFieldValue(&c, fieldType, values[i])
+						} else {
+							md["lon"] = r.getFieldValue(&c, fieldType, values[i])
+						}
+						req.Data[elastic] = md
+					}
+				} else {
+					req.Data[elastic] = r.getFieldValue(&c, fieldType, values[i])
+				}
 			}
 		}
+
 		if mapped == false {
 			req.Data[c.Name] = r.makeReqColumnData(&c, values[i])
 		}
@@ -367,7 +385,6 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 	beforeValues []interface{}, afterValues []interface{}) {
 	req.Data = make(map[string]interface{}, len(beforeValues))
-
 	// maybe dangerous if something wrong delete before?
 	req.Action = elastic.ActionUpdate
 
@@ -382,11 +399,29 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 		}
 		for k, v := range rule.FieldMapping {
 			mysql, elastic, fieldType := r.getFieldParts(k, v)
+			//(EXTRA mysql=longitude, string=location, string=geo_lon, c.Name=latitude)"
+			//(EXTRA mysql=latitude, string=location, string=geo_lat, string=latitude)"
 			if mysql == c.Name {
 				mapped = true
-				req.Data[elastic] = r.getFieldValue(&c, fieldType, afterValues[i])
+				if (fieldType == fieldTypeGeoLat) || (fieldType == fieldTypeGeoLon) {
+					if _, ok := req.Data[elastic]; !ok {
+						req.Data[elastic] = make(map[string]interface{})
+					}
+					md, ok := req.Data[elastic].(map[string]interface{})
+					if ok {
+						if fieldType == fieldTypeGeoLat {
+							md["lat"] = r.getFieldValue(&c, fieldType, afterValues[i])
+						} else {
+							md["lon"] = r.getFieldValue(&c, fieldType, afterValues[i])
+						}
+						req.Data[elastic] = md
+					}
+				} else {
+					req.Data[elastic] = r.getFieldValue(&c, fieldType, afterValues[i])
+				}
 			}
 		}
+
 		if mapped == false {
 			req.Data[c.Name] = r.makeReqColumnData(&c, afterValues[i])
 		}
@@ -484,6 +519,14 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				fieldValue = r.makeReqColumnData(col, time.Unix(v.Int(), 0).Format(mysql.TimeFormat))
 			}
+		}
+
+	case fieldTypeGeoLat, fieldTypeGeoLon:
+		v := r.makeReqColumnData(col, value)
+		if str, ok := v.(string); ok {
+			fieldValue, _ = strconv.ParseFloat(str, 32)
+		} else {
+			fieldValue = v
 		}
 	}
 

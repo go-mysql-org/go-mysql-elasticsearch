@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/M2shad0w/go-mysql-elasticsearch/river"
 	"github.com/juju/errors"
-	"github.com/siddontang/go-mysql-elasticsearch/river"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,6 +28,13 @@ func main() {
 	flag.Parse()
 
 	level, _ := log.ParseLevel(*logLevel)
+	file, err := os.OpenFile("logrus.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		log.SetOutput(file)
+	} else {
+		log.Info("Failed to log to file, using default stderr")
+	}
+	//	log.SetOutput(os.Stdout)
 	log.SetLevel(level)
 
 	sc := make(chan os.Signal, 1)
