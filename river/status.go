@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/pprof"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/siddontang/go/sync2"
+	log "github.com/sirupsen/logrus"
 )
 
 type stat struct {
@@ -60,6 +61,7 @@ func (s *stat) Run(addr string) {
 	srv := http.Server{}
 	mux := http.NewServeMux()
 	mux.Handle("/stat", s)
+	mux.Handle("/debug/pprof", http.HandlerFunc(pprof.Index))
 	srv.Handler = mux
 
 	srv.Serve(s.l)
