@@ -343,9 +343,10 @@ func (r *River) getFieldParts(k string, v string) (string, string, string) {
 
 func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values []interface{}) {
 	req.Data = make(map[string]interface{}, len(values))
-	//定义全局字符串存储
+	/*//定义全局字符串存储
 	var spercontact string
 	var percontact_r schema.TableColumn
+	*/
 	req.Action = elastic.ActionIndex
 	for i, c := range rule.TableInfo.Columns {
 		if !rule.CheckFilter(c.Name) {
@@ -359,6 +360,7 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 				req.Data[elastic] = r.getFieldValue(&c, fieldType, values[i])
 			}
 		}
+		/*
 		//添加拼接字符串处理
 		switch c.Name {
 		case "category_name":
@@ -371,13 +373,16 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 		case "dishsno":
 			spercontact = fmt.Sprintf("%s %s", spercontact, values[i])
 		}
+		*/
 		if mapped == false {
 			req.Data[c.Name] = r.makeReqColumnData(&c, values[i])
 		}
 	}
+	/*
 	//添加插入处理
 	percontact_r.Name = "percontact"
 	req.Data["percontact"] = r.makeReqColumnData(&percontact_r, spercontact)
+	*/
 }
 
 func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
