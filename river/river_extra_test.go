@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
-	. "gopkg.in/check.v1"
+	. "github.com/pingcap/check"
 )
 
 func (s *riverTestSuite) setupExtra(c *C) (r *River) {
@@ -45,6 +46,8 @@ func (s *riverTestSuite) setupExtra(c *C) (r *River) {
 	cfg.DumpExec = "mysqldump"
 
 	cfg.StatAddr = "127.0.0.1:12800"
+	cfg.BulkSize = 1
+	cfg.FlushBulkTime = TomlDuration{3 * time.Millisecond}
 
 	os.RemoveAll(cfg.DataDir)
 
@@ -110,15 +113,14 @@ func (s *riverTestSuite) TestRiverWithParent(c *C) {
 
 	s.testPrepareExtraData(c)
 
-	go river.Run()
+	go func() { river.Run() }()
 
-	<-river.canal.WaitDumpDone()
+	testWaitSyncDone(c, river)
 
 	s.testElasticExtraExists(c, "1", "1", true)
 
 	s.testExecute(c, "DELETE FROM test_river_extra WHERE id = ?", 1)
-	err := river.canal.CatchMasterPos(1)
-	c.Assert(err, IsNil)
+	testWaitSyncDone(c, river)
 
 	s.testElasticExtraExists(c, "1", "1", false)
 }

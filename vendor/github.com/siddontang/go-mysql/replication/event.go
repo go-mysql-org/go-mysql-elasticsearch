@@ -16,7 +16,10 @@ import (
 )
 
 const (
-	EventHeaderSize = 19
+	EventHeaderSize            = 19
+	SidLength                  = 16
+	LogicalTimestampTypeCode   = 2
+	PartLogicalTimestampLength = 8
 )
 
 type BinlogEvent struct {
@@ -216,6 +219,9 @@ func (e *RotateEvent) Dump(w io.Writer) {
 
 type XIDEvent struct {
 	XID uint64
+
+	// in fact XIDEvent dosen't have the GTIDSet information, just for beneficial to use
+	GSet GTIDSet
 }
 
 func (e *XIDEvent) Decode(data []byte) error {
@@ -225,6 +231,9 @@ func (e *XIDEvent) Decode(data []byte) error {
 
 func (e *XIDEvent) Dump(w io.Writer) {
 	fmt.Fprintf(w, "XID: %d\n", e.XID)
+	if e.GSet != nil {
+		fmt.Fprintf(w, "GTIDSet: %s\n", e.GSet.String())
+	}
 	fmt.Fprintln(w)
 }
 
@@ -235,6 +244,9 @@ type QueryEvent struct {
 	StatusVars    []byte
 	Schema        []byte
 	Query         []byte
+
+	// in fact QueryEvent dosen't have the GTIDSet information, just for beneficial to use
+	GSet GTIDSet
 }
 
 func (e *QueryEvent) Decode(data []byte) error {
@@ -275,21 +287,36 @@ func (e *QueryEvent) Dump(w io.Writer) {
 	//fmt.Fprintf(w, "Status vars: \n%s", hex.Dump(e.StatusVars))
 	fmt.Fprintf(w, "Schema: %s\n", e.Schema)
 	fmt.Fprintf(w, "Query: %s\n", e.Query)
+	if e.GSet != nil {
+		fmt.Fprintf(w, "GTIDSet: %s\n", e.GSet.String())
+	}
 	fmt.Fprintln(w)
 }
 
 type GTIDEvent struct {
-	CommitFlag uint8
-	SID        []byte
-	GNO        int64
+	CommitFlag     uint8
+	SID            []byte
+	GNO            int64
+	LastCommitted  int64
+	SequenceNumber int64
 }
 
 func (e *GTIDEvent) Decode(data []byte) error {
-	e.CommitFlag = uint8(data[0])
-
-	e.SID = data[1:17]
-
-	e.GNO = int64(binary.LittleEndian.Uint64(data[17:]))
+	pos := 0
+	e.CommitFlag = uint8(data[pos])
+	pos++
+	e.SID = data[pos : pos+SidLength]
+	pos += SidLength
+	e.GNO = int64(binary.LittleEndian.Uint64(data[pos:]))
+	pos += 8
+	if len(data) >= 42 {
+		if uint8(data[pos]) == LogicalTimestampTypeCode {
+			pos++
+			e.LastCommitted = int64(binary.LittleEndian.Uint64(data[pos:]))
+			pos += PartLogicalTimestampLength
+			e.SequenceNumber = int64(binary.LittleEndian.Uint64(data[pos:]))
+		}
+	}
 	return nil
 }
 
@@ -297,6 +324,8 @@ func (e *GTIDEvent) Dump(w io.Writer) {
 	fmt.Fprintf(w, "Commit flag: %d\n", e.CommitFlag)
 	u, _ := uuid.FromBytes(e.SID)
 	fmt.Fprintf(w, "GTID_NEXT: %s:%d\n", u.String(), e.GNO)
+	fmt.Fprintf(w, "LAST_COMMITTED: %d\n", e.LastCommitted)
+	fmt.Fprintf(w, "SEQUENCE_NUMBER: %d\n", e.SequenceNumber)
 	fmt.Fprintln(w)
 }
 

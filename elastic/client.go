@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"crypto/tls"
 
 	"github.com/juju/errors"
 )
@@ -14,17 +15,38 @@ import (
 // Although there are many Elasticsearch clients with Go, I still want to implement one by myself.
 // Because we only need some very simple usages.
 type Client struct {
-	Addr string
+	Protocol string
+	Addr     string
+	User     string
+	Password string
 
 	c *http.Client
 }
 
-func NewClient(addr string) *Client {
+type ClientConfig struct {
+	Https    bool
+	Addr     string
+	User     string
+	Password string
+}
+
+func NewClient(conf *ClientConfig) *Client {
 	c := new(Client)
 
-	c.Addr = addr
+	c.Addr = conf.Addr
+	c.User = conf.User
+	c.Password = conf.Password
 
-	c.c = &http.Client{}
+	if conf.Https {
+		c.Protocol = "https"
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		c.c = &http.Client{Transport: tr}
+	} else {
+		c.Protocol = "http"
+		c.c = &http.Client{}
+	}
 
 	return c
 }
@@ -134,6 +156,34 @@ type BulkResponseItem struct {
 	Found   bool            `json:"found"`
 }
 
+type MappingResponse struct {
+	Code   int
+	Mapping Mapping
+}
+
+type Mapping map[string]struct {
+	Mappings map[string]struct {
+		Properties map[string]struct {
+			Type	string          `json:"type"`
+			Fields	interface{} 	`json:"fields"`
+		} `json:"properties"`
+	} `json:"mappings"`
+}
+
+func (c *Client) DoRequest(method string, url string, body *bytes.Buffer) (*http.Response, error) {
+	req, err := http.NewRequest(method, url, body)
+	req.Header.Add("Content-Type", "application/json")
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	if len(c.User) > 0 && len(c.Password) > 0 {
+		req.SetBasicAuth(c.User, c.Password)
+	}
+	resp, err := c.c.Do(req)
+
+	return resp, err
+}
+
 func (c *Client) Do(method string, url string, body map[string]interface{}) (*Response, error) {
 	bodyData, err := json.Marshal(body)
 	if err != nil {
@@ -141,13 +191,11 @@ func (c *Client) Do(method string, url string, body map[string]interface{}) (*Re
 	}
 
 	buf := bytes.NewBuffer(bodyData)
-
-	req, err := http.NewRequest(method, url, buf)
-	if err != nil {
-		return nil, errors.Trace(err)
+	if body == nil {
+		buf = bytes.NewBuffer(nil)
 	}
 
-	resp, err := c.c.Do(req)
+	resp, err := c.DoRequest(method, url, buf)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -178,12 +226,7 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 		}
 	}
 
-	req, err := http.NewRequest("POST", url, &buf)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	resp, err := c.c.Do(req)
+	resp, err := c.DoRequest("POST", url, &buf)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -206,7 +249,7 @@ func (c *Client) DoBulk(url string, items []*BulkRequest) (*BulkResponse, error)
 }
 
 func (c *Client) CreateMapping(index string, docType string, mapping map[string]interface{}) error {
-	reqUrl := fmt.Sprintf("http://%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index))
 
 	r, err := c.Do("HEAD", reqUrl, nil)
@@ -214,16 +257,18 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 		return errors.Trace(err)
 	}
 
-	// index doesn't exist, create index first
-	if r.Code != http.StatusOK {
-		_, err = c.Do("POST", reqUrl, nil)
+	// if index doesn't exist, will get 404 not found, create index first
+	if r.Code == http.StatusNotFound {
+		_, err = c.Do("PUT", reqUrl, nil)
 
 		if err != nil {
 			return errors.Trace(err)
 		}
+	} else if r.Code != http.StatusOK {
+		return errors.Errorf("Error: %s, code: %d", http.StatusText(r.Code), r.Code)
 	}
 
-	reqUrl = fmt.Sprintf("http://%s/%s/%s/_mapping", c.Addr,
+	reqUrl = fmt.Sprintf("%s://%s/%s/%s/_mapping", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType))
 
@@ -231,8 +276,36 @@ func (c *Client) CreateMapping(index string, docType string, mapping map[string]
 	return errors.Trace(err)
 }
 
+func (c *Client) GetMapping(index string, docType string) (*MappingResponse, error){
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/_mapping", c.Protocol, c.Addr,
+		url.QueryEscape(index),
+		url.QueryEscape(docType))
+	buf := bytes.NewBuffer(nil)
+	resp, err := c.DoRequest("GET", reqUrl, buf)
+
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	defer resp.Body.Close()
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	ret := new(MappingResponse)
+	err = json.Unmarshal(data, &ret.Mapping)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	ret.Code = resp.StatusCode
+	return ret, errors.Trace(err)
+}
+
 func (c *Client) DeleteIndex(index string) error {
-	reqUrl := fmt.Sprintf("http://%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index))
 
 	r, err := c.Do("DELETE", reqUrl, nil)
@@ -248,7 +321,7 @@ func (c *Client) DeleteIndex(index string) error {
 }
 
 func (c *Client) Get(index string, docType string, id string) (*Response, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType),
 		url.QueryEscape(id))
@@ -258,7 +331,7 @@ func (c *Client) Get(index string, docType string, id string) (*Response, error)
 
 // Can use Update to create or update the data
 func (c *Client) Update(index string, docType string, id string, data map[string]interface{}) error {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType),
 		url.QueryEscape(id))
@@ -276,7 +349,7 @@ func (c *Client) Update(index string, docType string, id string, data map[string
 }
 
 func (c *Client) Exists(index string, docType string, id string) (bool, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType),
 		url.QueryEscape(id))
@@ -290,7 +363,7 @@ func (c *Client) Exists(index string, docType string, id string) (bool, error) {
 }
 
 func (c *Client) Delete(index string, docType string, id string) error {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/%s", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/%s", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType),
 		url.QueryEscape(id))
@@ -309,20 +382,20 @@ func (c *Client) Delete(index string, docType string, id string) error {
 
 // only support parent in 'Bulk' related apis
 func (c *Client) Bulk(items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/_bulk", c.Addr)
+	reqUrl := fmt.Sprintf("%s://%s/_bulk", c.Protocol, c.Addr)
 
 	return c.DoBulk(reqUrl, items)
 }
 
 func (c *Client) IndexBulk(index string, items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/_bulk", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/_bulk", c.Protocol, c.Addr,
 		url.QueryEscape(index))
 
 	return c.DoBulk(reqUrl, items)
 }
 
 func (c *Client) IndexTypeBulk(index string, docType string, items []*BulkRequest) (*BulkResponse, error) {
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/_bulk", c.Addr,
+	reqUrl := fmt.Sprintf("%s://%s/%s/%s/_bulk", c.Protocol, c.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType))
 

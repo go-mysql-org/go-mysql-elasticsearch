@@ -1,16 +1,18 @@
 language: go
 
 go:
-  - 1.6
   - 1.7
-
+  - 1.8
+  
 services:
   - elasticsearch
+  - mysql
 
 before_install:
   - go install -race std
 
   # stop mysql and use row-based format binlog
+  - "bash .travis.install-mysql-5.7.sh"
   - "sudo /etc/init.d/mysql stop || true"
   - "echo '[mysqld]'            | sudo tee /etc/mysql/conf.d/replication.cnf"
   - "echo 'server-id=1'         | sudo tee -a /etc/mysql/conf.d/replication.cnf"
@@ -25,3 +27,4 @@ before_install:
 
 script:
   - go test --race ./...
+

@@ -1,15 +1,16 @@
 package river
 
 import (
+	"strings"
+	"context"
 	"fmt"
 	"regexp"
 	"sync"
 
 	"github.com/juju/errors"
-	"github.com/ngaut/log"
-	"github.com/siddontang/go-mysql/canal"
-
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
+	"github.com/siddontang/go-mysql/canal"
+	log "github.com/sirupsen/logrus"
 )
 
 // In Elasticsearch, river is a pluggable service within Elasticsearch pulling data then indexing it into Elasticsearch.
@@ -22,24 +23,33 @@ type River struct {
 
 	rules map[string]*Rule
 
-	quit chan struct{}
-	wg   sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	wg sync.WaitGroup
 
 	es *elastic.Client
 
 	st *stat
+
+	master *masterInfo
+
+	syncCh chan interface{}
 }
 
 func NewRiver(c *Config) (*River, error) {
 	r := new(River)
 
 	r.c = c
-
-	r.quit = make(chan struct{})
-
 	r.rules = make(map[string]*Rule)
+	r.syncCh = make(chan interface{}, 4096)
+	r.ctx, r.cancel = context.WithCancel(context.Background())
 
 	var err error
+	if r.master, err = loadMasterInfo(c.DataDir); err != nil {
+		return nil, errors.Trace(err)
+	}
+
 	if err = r.newCanal(); err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -57,7 +67,12 @@ func NewRiver(c *Config) (*River, error) {
 		return nil, errors.Trace(err)
 	}
 
-	r.es = elastic.NewClient(r.c.ESAddr)
+	cfg := new(elastic.ClientConfig)
+	cfg.Addr = r.c.ESAddr
+	cfg.User = r.c.ESUser
+	cfg.Password = r.c.ESPassword
+	cfg.Https = r.c.ESHttps
+	r.es = elastic.NewClient(cfg)
 
 	r.st = &stat{r: r}
 	go r.st.Run(r.c.StatAddr)
@@ -70,12 +85,13 @@ func (r *River) newCanal() error {
 	cfg.Addr = r.c.MyAddr
 	cfg.User = r.c.MyUser
 	cfg.Password = r.c.MyPassword
+	cfg.Charset = r.c.MyCharset
 	cfg.Flavor = r.c.Flavor
-	cfg.DataDir = r.c.DataDir
 
 	cfg.ServerID = r.c.ServerID
 	cfg.Dump.ExecutionPath = r.c.DumpExec
 	cfg.Dump.DiscardErr = false
+	cfg.Dump.SkipMasterData = r.c.SkipMasterData
 
 	var err error
 	r.canal, err = canal.NewCanal(cfg)
@@ -105,7 +121,7 @@ func (r *River) prepareCanal() error {
 		r.canal.AddDumpDatabases(keys...)
 	}
 
-	r.canal.RegRowsEventHandler(&rowsEventHandler{r})
+	r.canal.SetEventHandler(&eventHandler{r})
 
 	return nil
 }
@@ -126,6 +142,10 @@ func (r *River) parseSource() (map[string][]string, error) {
 
 	// first, check sources
 	for _, s := range r.c.Sources {
+		if !isValidTables(s.Tables) {
+			return nil, errors.Errorf("wildcard * is not allowed for multiple tables")
+		}
+
 		for _, table := range s.Tables {
 			if len(s.Schema) == 0 {
 				return nil, errors.Errorf("empty schema not allowed for source")
@@ -139,7 +159,7 @@ func (r *River) parseSource() (map[string][]string, error) {
 				tables := []string{}
 
 				sql := fmt.Sprintf(`SELECT table_name FROM information_schema.tables WHERE
-                    table_name RLIKE "%s" AND table_schema = "%s";`, table, s.Schema)
+					table_name RLIKE "%s" AND table_schema = "%s";`, buildTable(table), s.Schema)
 
 				res, err := r.canal.Execute(sql)
 				if err != nil {
@@ -204,6 +224,7 @@ func (r *River) prepareRule() error {
 					rr.Index = rule.Index
 					rr.Type = rule.Type
 					rr.Parent = rule.Parent
+					rr.ID = rule.ID
 					rr.FieldMapping = rule.FieldMapping
 				}
 			} else {
@@ -217,27 +238,38 @@ func (r *River) prepareRule() error {
 		}
 	}
 
-	for _, rule := range r.rules {
+	rules := make(map[string]*Rule)
+	for key, rule := range r.rules {
 		if rule.TableInfo, err = r.canal.GetTable(rule.Schema, rule.Table); err != nil {
 			return errors.Trace(err)
 		}
 
-		// table must have a PK for one column, multi columns may be supported later.
-
-		if len(rule.TableInfo.PKColumns) != 1 {
-			return errors.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
+		if len(rule.TableInfo.PKColumns) == 0 {
+			if !r.c.SkipNoPkTable {
+				return errors.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
+			} else {
+				log.Errorf("ignored table without a primary key: %s\n", rule.TableInfo.Name)
+			}
+		} else {
+			rules[key] = rule
 		}
 	}
+	r.rules = rules
 
 	return nil
 }
 
 func ruleKey(schema string, table string) string {
-	return fmt.Sprintf("%s:%s", schema, table)
+	return strings.ToLower(fmt.Sprintf("%s:%s", schema, table))
 }
 
+// Run syncs the data from MySQL and inserts to ES.
 func (r *River) Run() error {
-	if err := r.canal.Start(); err != nil {
+	r.wg.Add(1)
+	go r.syncLoop()
+
+	pos := r.master.Position()
+	if err := r.canal.RunFrom(pos); err != nil {
 		log.Errorf("start canal err %v", err)
 		return errors.Trace(err)
 	}
@@ -245,11 +277,36 @@ func (r *River) Run() error {
 	return nil
 }
 
+func (r *River) Ctx() context.Context {
+	return r.ctx
+}
+
 func (r *River) Close() {
 	log.Infof("closing river")
-	close(r.quit)
+
+	r.cancel()
 
 	r.canal.Close()
 
+	r.master.Close()
+
 	r.wg.Wait()
+}
+
+func isValidTables(tables []string) bool {
+	if len(tables) > 1 {
+		for _, table := range tables {
+			if table == "*" {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func buildTable(table string) string {
+	if table == "*" {
+		return "." + table
+	}
+	return table
 }

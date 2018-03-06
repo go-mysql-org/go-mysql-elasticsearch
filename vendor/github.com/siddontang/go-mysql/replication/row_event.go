@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/juju/errors"
-	"github.com/ngaut/log"
+	log "github.com/sirupsen/logrus"
 	. "github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go/hack"
 )
+
+type errMissingTableMapEvent error
 
 type TableMapEvent struct {
 	tableIDSize int
@@ -223,6 +225,8 @@ type RowsEvent struct {
 
 	//rows: invalid: int64, float64, bool, []byte, string
 	Rows [][]interface{}
+
+	parseTime bool
 }
 
 func (e *RowsEvent) Decode(data []byte) error {
@@ -257,7 +261,11 @@ func (e *RowsEvent) Decode(data []byte) error {
 	var ok bool
 	e.Table, ok = e.tables[e.TableID]
 	if !ok {
-		return errors.Errorf("invalid table id %d, no correspond table map event", e.TableID)
+		if len(e.tables) > 0 {
+			return errors.Errorf("invalid table id %d, no corresponding table map event", e.TableID)
+		} else {
+			return errMissingTableMapEvent(errors.Errorf("invalid table id %d, no corresponding table map event", e.TableID))
+		}
 	}
 
 	var err error
@@ -336,6 +344,21 @@ func (e *RowsEvent) decodeRows(data []byte, table *TableMapEvent, bitmap []byte)
 	return pos, nil
 }
 
+func (e *RowsEvent) parseFracTime(t interface{}) interface{} {
+	v, ok := t.(fracTime)
+	if !ok {
+		return t
+	}
+
+	if !e.parseTime {
+		// Don't parse time, return string directly
+		return v.String()
+	}
+
+	// return Golang time directly
+	return v.Time
+}
+
 // see mysql sql/log_event.cc log_event_print_value
 func (e *RowsEvent) decodeValue(data []byte, tp byte, meta uint16) (v interface{}, n int, err error) {
 	var length int = 0
@@ -394,24 +417,26 @@ func (e *RowsEvent) decodeValue(data []byte, tp byte, meta uint16) (v interface{
 	case MYSQL_TYPE_TIMESTAMP:
 		n = 4
 		t := binary.LittleEndian.Uint32(data)
-		v = time.Unix(int64(t), 0)
+		v = e.parseFracTime(fracTime{time.Unix(int64(t), 0), 0})
 	case MYSQL_TYPE_TIMESTAMP2:
 		v, n, err = decodeTimestamp2(data, meta)
+		v = e.parseFracTime(v)
 	case MYSQL_TYPE_DATETIME:
 		n = 8
 		i64 := binary.LittleEndian.Uint64(data)
 		d := i64 / 1000000
 		t := i64 % 1000000
-		v = time.Date(int(d/10000),
+		v = e.parseFracTime(fracTime{time.Date(int(d/10000),
 			time.Month((d%10000)/100),
 			int(d%100),
 			int(t/10000),
 			int((t%10000)/100),
 			int(t%100),
 			0,
-			time.UTC).Format(TimeFormat)
+			time.UTC), 0})
 	case MYSQL_TYPE_DATETIME2:
 		v, n, err = decodeDatetime2(data, meta)
+		v = e.parseFracTime(v)
 	case MYSQL_TYPE_TIME:
 		n = 3
 		i32 := uint32(FixedLengthInt(data[0:3]))
@@ -456,26 +481,7 @@ func (e *RowsEvent) decodeValue(data []byte, tp byte, meta uint16) (v interface{
 
 		v, err = decodeBit(data, nbits, n)
 	case MYSQL_TYPE_BLOB:
-		switch meta {
-		case 1:
-			length = int(data[0])
-			v = data[1 : 1+length]
-			n = length + 1
-		case 2:
-			length = int(binary.LittleEndian.Uint16(data))
-			v = data[2 : 2+length]
-			n = length + 2
-		case 3:
-			length = int(FixedLengthInt(data[0:3]))
-			v = data[3 : 3+length]
-			n = length + 3
-		case 4:
-			length = int(binary.LittleEndian.Uint32(data))
-			v = data[4 : 4+length]
-			n = length + 4
-		default:
-			err = fmt.Errorf("invalid blob packlen = %d", meta)
-		}
+		v, n, err = decodeBlob(data, meta)
 	case MYSQL_TYPE_VARCHAR,
 		MYSQL_TYPE_VAR_STRING:
 		length = int(meta)
@@ -483,10 +489,18 @@ func (e *RowsEvent) decodeValue(data []byte, tp byte, meta uint16) (v interface{
 	case MYSQL_TYPE_STRING:
 		v, n = decodeString(data, length)
 	case MYSQL_TYPE_JSON:
-		// Refer https://github.com/shyiko/mysql-binlog-connector-java/blob/8f9132ee773317e00313204beeae8ddcaa43c1b4/src/main/java/com/github/shyiko/mysql/binlog/event/deserialization/AbstractRowsEventDataDeserializer.java#L344
-		length = int(binary.LittleEndian.Uint32(data[0:]))
+		// Refer: https://github.com/shyiko/mysql-binlog-connector-java/blob/master/src/main/java/com/github/shyiko/mysql/binlog/event/deserialization/AbstractRowsEventDataDeserializer.java#L404
+		length = int(FixedLengthInt(data[0:meta]))
 		n = length + int(meta)
 		v, err = decodeJsonBinary(data[meta:n])
+	case MYSQL_TYPE_GEOMETRY:
+		// MySQL saves Geometry as Blob in binlog
+		// Seem that the binary format is SRID (4 bytes) + WKB, outer can use
+		// MySQL GeoFromWKB or others to create the geometry data.
+		// Refer https://dev.mysql.com/doc/refman/5.7/en/gis-wkb-functions.html
+		// I also find some go libs to handle WKB if possible
+		// see https://github.com/twpayne/go-geom or https://github.com/paulmach/go.geo
+		v, n, err = decodeBlob(data, meta)
 	default:
 		err = fmt.Errorf("unsupport type %d in binlog and don't know how to handle", tp)
 	}
@@ -611,7 +625,7 @@ func decodeBit(data []byte, nbits int, length int) (value int64, err error) {
 	return
 }
 
-func decodeTimestamp2(data []byte, dec uint16) (string, int, error) {
+func decodeTimestamp2(data []byte, dec uint16) (interface{}, int, error) {
 	//get timestamp binary length
 	n := int(4 + (dec+1)/2)
 	sec := int64(binary.BigEndian.Uint32(data[0:4]))
@@ -626,16 +640,15 @@ func decodeTimestamp2(data []byte, dec uint16) (string, int, error) {
 	}
 
 	if sec == 0 {
-		return "0000-00-00 00:00:00", n, nil
+		return formatZeroTime(int(usec), int(dec)), n, nil
 	}
 
-	t := time.Unix(sec, usec*1000)
-	return t.Format(TimeFormat), n, nil
+	return fracTime{time.Unix(sec, usec*1000), int(dec)}, n, nil
 }
 
 const DATETIMEF_INT_OFS int64 = 0x8000000000
 
-func decodeDatetime2(data []byte, dec uint16) (string, int, error) {
+func decodeDatetime2(data []byte, dec uint16) (interface{}, int, error) {
 	//get datetime binary length
 	n := int(5 + (dec+1)/2)
 
@@ -652,7 +665,7 @@ func decodeDatetime2(data []byte, dec uint16) (string, int, error) {
 	}
 
 	if intPart == 0 {
-		return "0000-00-00 00:00:00", n, nil
+		return formatZeroTime(int(frac), int(dec)), n, nil
 	}
 
 	tmp := intPart<<24 + frac
@@ -661,7 +674,7 @@ func decodeDatetime2(data []byte, dec uint16) (string, int, error) {
 		tmp = -tmp
 	}
 
-	var secPart int64 = tmp % (1 << 24)
+	// var secPart int64 = tmp % (1 << 24)
 	ymdhms := tmp >> 24
 
 	ymd := ymdhms >> 17
@@ -676,10 +689,7 @@ func decodeDatetime2(data []byte, dec uint16) (string, int, error) {
 	minute := int((hms >> 6) % (1 << 6))
 	hour := int((hms >> 12))
 
-	if secPart != 0 {
-		return fmt.Sprintf("%04d-%02d-%02d %02d:%02d:%02d.%06d", year, month, day, hour, minute, second, secPart), n, nil
-	}
-	return fmt.Sprintf("%04d-%02d-%02d %02d:%02d:%02d", year, month, day, hour, minute, second), n, nil
+	return fracTime{time.Date(year, time.Month(month), day, hour, minute, second, int(frac*1000), time.UTC), int(dec)}, n, nil
 }
 
 const TIMEF_OFS int64 = 0x800000000000
@@ -764,6 +774,32 @@ func decodeTime2(data []byte, dec uint16) (string, int, error) {
 	}
 
 	return fmt.Sprintf("%s%02d:%02d:%02d", sign, hour, minute, second), n, nil
+}
+
+func decodeBlob(data []byte, meta uint16) (v []byte, n int, err error) {
+	var length int
+	switch meta {
+	case 1:
+		length = int(data[0])
+		v = data[1 : 1+length]
+		n = length + 1
+	case 2:
+		length = int(binary.LittleEndian.Uint16(data))
+		v = data[2 : 2+length]
+		n = length + 2
+	case 3:
+		length = int(FixedLengthInt(data[0:3]))
+		v = data[3 : 3+length]
+		n = length + 3
+	case 4:
+		length = int(binary.LittleEndian.Uint32(data))
+		v = data[4 : 4+length]
+		n = length + 4
+	default:
+		err = fmt.Errorf("invalid blob packlen = %d", meta)
+	}
+
+	return
 }
 
 func (e *RowsEvent) Dump(w io.Writer) {
