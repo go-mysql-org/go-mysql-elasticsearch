@@ -314,7 +314,7 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 		if err == nil && f != nil {
 			return f
 		}
-	case schema.TYPE_DATETIME:
+	case schema.TYPE_DATETIME, schema.TYPE_TIMESTAMP:
 		switch v := value.(type) {
 		case string:
 			vt, _ := time.ParseInLocation(mysql.TimeFormat, string(v), time.Local)
