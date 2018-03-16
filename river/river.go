@@ -1,10 +1,10 @@
 package river
 
 import (
-	"strings"
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/juju/errors"
@@ -255,6 +255,22 @@ func (r *River) prepareRule() error {
 		}
 	}
 	r.rules = rules
+
+	return nil
+}
+
+func (r *River) updateRule(schema string, table string) error {
+	rule, ok := r.rules[ruleKey(schema, table)]
+	if !ok {
+		return nil
+	}
+
+	tableInfo, err := r.canal.GetTable(schema, table)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	rule.TableInfo = tableInfo
 
 	return nil
 }
