@@ -4,17 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"reflect"
-	"strings"
-	"time"
-
 	"github.com/juju/errors"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/canal"
+	"github.com/siddontang/go-mysql/client"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go-mysql/schema"
 	log "github.com/sirupsen/logrus"
+	"reflect"
+	"strconv"
+	"strings"
+	"time"
 )
 
 const (
@@ -347,6 +348,14 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 	//定义全局字符串存储
 	var spercontact string
 	var percontact_r schema.TableColumn
+	var i_partprice schema.TableColumn
+	var i_price schema.TableColumn
+	var i_boxprice schema.TableColumn
+	var v_discount_acmount schema.TableColumn
+	var v_platform_rate schema.TableColumn
+	var v_shop_rate schema.TableColumn
+	var v_fee schema.TableColumn
+	var sdatabase string
 
 	req.Action = elastic.ActionIndex
 	for i, c := range rule.TableInfo.Columns {
@@ -361,6 +370,19 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 				req.Data[elastic] = r.getFieldValue(&c, fieldType, values[i])
 			}
 		}
+
+		if rule.TableInfo.Name == "alp_merchant_order" {
+			if c.Name == "totalprice" {
+				i_partprice = c
+				i_price = c
+				i_boxprice = c
+				v_discount_acmount = c
+				v_platform_rate = c
+				v_shop_rate = c
+				v_fee = c
+			}
+		}
+
 		if rule.TableInfo.Name == "alp_dish_sales" {
 			//添加拼接字符串处理
 			switch c.Name {
@@ -379,6 +401,57 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 			req.Data[c.Name] = r.makeReqColumnData(&c, values[i])
 		}
 	}
+	//定制化需求
+	if rule.TableInfo.Name == "alp_merchant_order" {
+		for _, s := range r.c.Sources {
+			sdatabase = s.Schema
+		}
+		time.Sleep(1000 * time.Millisecond)
+		conn, _ := client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, sdatabase)
+		conn.Ping()
+		ress, err := conn.Execute("select amoid from alp_merchant_order order by amoid desc limit 0,1")
+		amoid, _ := ress.GetIntByName(0, "amoid")
+		s_amoid := "select sum(if(partstatus=2,partprice,0)) partprice,sum(price) price ,sum(if(itemname='餐盒费',price,0)) boxprice from alp_merchant_order_item where amoid=" + strconv.FormatInt(amoid, 10)
+		//fmt.Printf("%s", s_amoid)
+		res, err := conn.Execute(s_amoid)
+		if err != nil {
+			log.Errorf("err %v ", err)
+		}
+		partprice, _ := res.GetFloatByName(0, "partprice")
+		price, _ := res.GetFloatByName(0, "price")
+		boxprice, _ := res.GetFloatByName(0, "boxprice")
+		f_partprice := fmt.Sprintf("%0.2f", partprice)
+		f_price := fmt.Sprintf("%0.2f", price)
+		f_boxprice := fmt.Sprintf("%0.2f", boxprice)
+		i_partprice.Name = "i_partprice"
+		i_price.Name = "price"
+		i_boxprice.Name = "i_boxprice"
+		a_amoid := "select sum(discount_acmount) discount_acmount,sum(platform_rate) platform_rate,sum(shop_rate) shop_rate from alp_merchant_order_activity  where amoid=" + strconv.FormatInt(amoid, 10)
+		rss, err := conn.Execute(a_amoid)
+		discount_acmount, _ := rss.GetFloatByName(0, "discount_acmount")
+		platform_rate, _ := rss.GetFloatByName(0, "platform_rate")
+		shop_rate, _ := rss.GetFloatByName(0, "shop_rate")
+		f_discount_acmount := fmt.Sprintf("%0.2f", discount_acmount)
+		f_platform_rate := fmt.Sprintf("%0.2f", platform_rate)
+		f_shop_rate := fmt.Sprintf("%0.2f", shop_rate)
+		v_discount_acmount.Name = "v_discount_acmount"
+		v_platform_rate.Name = "v_platform_rate"
+		v_shop_rate.Name = "v_shop_rate"
+		e_amoid := "select sum(fee) fee from alp_merchant_order_extras where amoid=" + strconv.FormatInt(amoid, 10)
+		rse, err := conn.Execute(e_amoid)
+		fee, _ := rse.GetFloatByName(0, "fee")
+		f_fee := fmt.Sprintf("%0.2f", fee)
+		v_fee.Name = "v_fee"
+		req.Data["i_partprice"] = r.makeReqColumnData(&i_partprice, f_partprice)
+		req.Data["price"] = r.makeReqColumnData(&i_price, f_price)
+		req.Data["i_boxprice"] = r.makeReqColumnData(&i_boxprice, f_boxprice)
+		req.Data["v_discount_acmount"] = r.makeReqColumnData(&v_discount_acmount, f_discount_acmount)
+		req.Data["v_platform_rate"] = r.makeReqColumnData(&v_platform_rate, f_platform_rate)
+		req.Data["v_shop_rate"] = r.makeReqColumnData(&v_shop_rate, f_shop_rate)
+		req.Data["v_fee"] = r.makeReqColumnData(&v_fee, f_fee)
+		conn.Close()
+	}
+
 	if rule.TableInfo.Name == "alp_dish_sales" {
 		//添加插入处理
 		percontact_r.Name = "percontact"
