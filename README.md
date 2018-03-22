@@ -191,9 +191,10 @@ Although there are some other MySQL rivers for Elasticsearch, like [elasticsearc
 
 If you like the project and want to buy me a cola, you can through: 
 
-|PayPal|微信|
-|------|---|
-|[![](https://www.paypalobjects.com/webstatic/paypalme/images/pp_logo_small.png)](https://paypal.me/siddontang)|[![](https://github.com/siddontang/blog/blob/master/donate/weixin.png)|
+### 如果你对我的辛勤劳动给予肯定，请给我捐赠，你的捐赠是我最大的动力
+![](https://github.com/qieangel2013/zys/blob/master/public/images/pw.jpg)
+![](https://github.com/qieangel2013/zys/blob/master/public/images/pay.png)
+[项目捐赠列表](https://github.com/qieangel2013/zys/wiki/%E9%A1%B9%E7%9B%AE%E6%8D%90%E8%B5%A0)
 
 ## Feedback
 
