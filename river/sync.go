@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -30,6 +31,13 @@ const (
 	fieldTypeDate = "date"
 )
 
+var (
+	expCreateTable = regexp.MustCompile("(?i)^CREATE\\sTABLE(\\sIF\\sNOT\\sEXISTS)?\\s`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}\\s.*")
+	expAlterTable  = regexp.MustCompile("(?i)^ALTER\\sTABLE\\s.*?`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}\\s.*")
+	expRenameTable = regexp.MustCompile("(?i)^RENAME\\sTABLE\\s.*?`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}\\s{1,}TO\\s.*?")
+	expDropTable   = regexp.MustCompile("(?i)^DROP\\sTABLE(\\sIF\\sEXISTS){0,1}\\s`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}($|\\s)")
+)
+
 type posSaver struct {
 	pos   mysql.Position
 	force bool
@@ -50,7 +58,26 @@ func (h *eventHandler) OnRotate(e *replication.RotateEvent) error {
 	return h.r.ctx.Err()
 }
 
-func (h *eventHandler) OnDDL(nextPos mysql.Position, _ *replication.QueryEvent) error {
+func (h *eventHandler) OnDDL(nextPos mysql.Position, e *replication.QueryEvent) error {
+	var mb [][]byte
+
+	regexps := []regexp.Regexp{*expCreateTable, *expAlterTable, *expRenameTable, *expDropTable}
+	for _, reg := range regexps {
+		mb = reg.FindSubmatch(e.Query)
+		if len(mb) != 0 {
+			break
+		}
+	}
+
+	mbLen := len(mb)
+	if mbLen != 0 {
+		table := mb[mbLen-1]
+		err := h.r.updateRule(string(e.Schema), string(table))
+		if err != nil {
+			return errors.Trace(err)
+		}
+	}
+
 	h.r.syncCh <- posSaver{nextPos, true}
 	return h.r.ctx.Err()
 }
