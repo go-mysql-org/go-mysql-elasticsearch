@@ -1,25 +1,33 @@
 language: go
 
 go:
+  - "1.9"
   - "1.10"
   
 services:
   - elasticsearch
-  - mysql
+
+addons:
+  apt:
+    sources:
+      - mysql-5.7-trusty
+    packages:
+      - mysql-server
+      - mysql-client
 
 before_install:
-  - go install -race std
+  - sudo mysql -e "use mysql; update user set authentication_string=PASSWORD('') where User='root'; update user set plugin='mysql_native_password';FLUSH PRIVILEGES;"
+  - sudo mysql_upgrade
 
   # stop mysql and use row-based format binlog
-  - "bash .travis.install-mysql-5.7.sh"
-  - "sudo /etc/init.d/mysql stop || true"
+  - "sudo service mysql stop || true"
   - "echo '[mysqld]'            | sudo tee /etc/mysql/conf.d/replication.cnf"
   - "echo 'server-id=1'         | sudo tee -a /etc/mysql/conf.d/replication.cnf"
   - "echo 'log-bin=mysql-bin'   | sudo tee -a /etc/mysql/conf.d/replication.cnf"
   - "echo 'binlog-format = row' | sudo tee -a /etc/mysql/conf.d/replication.cnf"
 
   # Start mysql (avoid errors to have logs)
-  - "sudo /etc/init.d/mysql start || true"
+  - "sudo service mysql start || true"
   - "sudo tail -1000 /var/log/syslog"
 
   - mysql -e "CREATE DATABASE IF NOT EXISTS test;" -uroot
