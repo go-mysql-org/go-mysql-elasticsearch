@@ -50,6 +50,10 @@ func (h *eventHandler) OnRotate(e *replication.RotateEvent) error {
 	return h.r.ctx.Err()
 }
 
+func (h *eventHandler) OnTableChanged(schema, table string) error {
+	return nil
+}
+
 func (h *eventHandler) OnDDL(nextPos mysql.Position, _ *replication.QueryEvent) error {
 	h.r.syncCh <- posSaver{nextPos, true}
 	return h.r.ctx.Err()
@@ -183,7 +187,7 @@ func (r *River) makeRequest(rule *Rule, action string, rows [][]interface{}) ([]
 			}
 		}
 
-		req := &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: id, Parent: parentID}
+		req := &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: id, Parent: parentID, Pipeline: rule.Pipeline}
 
 		if action == canal.DeleteAction {
 			req.Action = elastic.ActionDelete
@@ -242,13 +246,21 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 			req.Action = elastic.ActionDelete
 			reqs = append(reqs, req)
 
-			req = &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: afterID, Parent: afterParentID}
+			req = &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: afterID, Parent: afterParentID, Pipeline: rule.Pipeline}
 			r.makeInsertReqData(req, rule, rows[i+1])
 
 			r.st.DeleteNum.Add(1)
 			r.st.InsertNum.Add(1)
 		} else {
-			r.makeUpdateReqData(req, rule, rows[i], rows[i+1])
+			if len(rule.Pipeline) > 0 {
+				// Pipelines can only be specified on index action
+				r.makeInsertReqData(req, rule, rows[i+1])
+				// Make sure action is index, not create
+				req.Action = elastic.ActionIndex
+				req.Pipeline = rule.Pipeline
+			} else {
+				r.makeUpdateReqData(req, rule, rows[i], rows[i+1])
+			}
 			r.st.UpdateNum.Add(1)
 		}
 

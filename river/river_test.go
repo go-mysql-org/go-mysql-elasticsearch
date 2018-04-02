@@ -204,6 +204,7 @@ type = "river"
 }
 
 func (s *riverTestSuite) testExecute(c *C, query string, args ...interface{}) {
+	c.Logf("query %s, args: %v", query, args)
 	_, err := s.c.Execute(query, args...)
 	c.Assert(err, IsNil)
 }

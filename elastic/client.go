@@ -79,6 +79,7 @@ type BulkRequest struct {
 	Type   string
 	ID     string
 	Parent string
+	Pipeline string
 
 	Data map[string]interface{}
 }
@@ -98,6 +99,9 @@ func (r *BulkRequest) bulk(buf *bytes.Buffer) error {
 	}
 	if len(r.Parent) > 0 {
 		metaData["_parent"] = r.Parent
+	}
+	if len(r.Pipeline) > 0 {
+		metaData["pipeline"] = r.Pipeline
 	}
 
 	meta[r.Action] = metaData

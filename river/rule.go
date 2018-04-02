@@ -27,6 +27,10 @@ type Rule struct {
 
 	//only MySQL fields in filter will be synced , default sync all fields
 	Filter []string `toml:"filter"`
+
+	// Elasticsearch pipeline
+	// To pre-process documents before indexing
+	Pipeline string `toml:"pipeline"`
 }
 
 func newDefaultRule(schema string, table string) *Rule {
