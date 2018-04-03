@@ -55,7 +55,6 @@ func (h *eventHandler) OnTableChanged(schema, table string) error {
 	var err error
 	h.r.rules[ruleKey(schema, table)].TableInfo, err = h.r.canal.GetTable(schema, table)
 	return err
-	return err
 }
 
 func (h *eventHandler) OnDDL(nextPos mysql.Position, _ *replication.QueryEvent) error {
