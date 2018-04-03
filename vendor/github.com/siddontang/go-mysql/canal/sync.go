@@ -13,7 +13,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//  m  多行模式：让 ^ 和 $ 匹配整个文本的开头和结尾，而非行首和行尾(默认为 false)
 var (
 	expCreateTable = regexp.MustCompile("(?im)CREATE\\sTABLE(\\sIF\\sNOT\\sEXISTS)?\\s`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}\\s.*")
 	expAlterTable  = regexp.MustCompile("(?im)ALTER\\sTABLE\\s.*?`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}\\s.*")
