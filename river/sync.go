@@ -53,7 +53,16 @@ func (h *eventHandler) OnRotate(e *replication.RotateEvent) error {
 func (h *eventHandler) OnTableChanged(schema, table string) error {
 	// 重新读取表结构
 	var err error
-	h.r.rules[ruleKey(schema, table)].TableInfo, err = h.r.canal.GetTable(schema, table)
+	_, ok := h.r.rules[ruleKey(schema, table)]
+	if !ok {
+		err = h.r.newRule(schema, table)
+		if err == nil {
+			h.r.rules[ruleKey(schema, table)].TableInfo, err = h.r.canal.GetTable(schema, table)
+		}
+
+	} else {
+		h.r.rules[ruleKey(schema, table)].TableInfo, err = h.r.canal.GetTable(schema, table)
+	}
 	return err
 }
 
