@@ -51,7 +51,7 @@ func (h *eventHandler) OnRotate(e *replication.RotateEvent) error {
 }
 
 func (h *eventHandler) OnTableChanged(schema, table string) error {
-	// 重新读取表结构
+	// Re-read table structure
 	var err error
 	_, ok := h.r.rules[ruleKey(schema, table)]
 	if !ok {
