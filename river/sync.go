@@ -347,7 +347,11 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 	//fmt.Printf("%#v\n", rule.TableInfo)
 	//定义全局字符串存储
 	var spercontact string
+	var si_zwnk string
+	var si_id string
 	var percontact_r schema.TableColumn
+	var si_zwnk_r schema.TableColumn
+	var si_id_r schema.TableColumn
 	var i_partprice schema.TableColumn
 	var i_price schema.TableColumn
 	var i_boxprice schema.TableColumn
@@ -355,6 +359,11 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 	var v_platform_rate schema.TableColumn
 	var v_shop_rate schema.TableColumn
 	var v_fee schema.TableColumn
+	var v_shopfee schema.TableColumn
+	var v_atotalprice schema.TableColumn
+	var v_asid schema.TableColumn
+	var v_aorderstatus schema.TableColumn
+	var v_aend_deliverytime schema.TableColumn
 	var sdatabase string
 
 	req.Action = elastic.ActionIndex
@@ -381,6 +390,16 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 				v_shop_rate = c
 				v_fee = c
 			}
+			//添加拼接字符串处理
+			switch c.Name {
+			case "contact":
+				si_zwnk = fmt.Sprintf("%s %s_", si_zwnk, values[i])
+			case "mobile":
+				si_zwnk = fmt.Sprintf("%s %s_", si_zwnk, values[i])
+			case "address":
+				si_zwnk = fmt.Sprintf("%s %s_", si_zwnk, values[i])
+				si_zwnk_r = c
+			}
 		}
 
 		if rule.TableInfo.Name == "alp_dish_sales" {
@@ -397,10 +416,37 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 				spercontact = fmt.Sprintf("%s %s", spercontact, values[i])
 			}
 		}
+
+		if rule.TableInfo.Name == "alp_merchant_order_activity" {
+			//添加拼接字符串处理
+			switch c.Name {
+			case "activity_type":
+				si_id = fmt.Sprintf("%s %s_", si_id, values[i])
+			case "discount_acmount":
+				si_id = fmt.Sprintf("%s %s_", si_id, values[i])
+			case "shop_rate":
+				si_id = fmt.Sprintf("%s %s_", si_id, values[i])
+				v_shopfee = c
+				v_atotalprice = c
+			case "source":
+				si_id = fmt.Sprintf("%s %s", si_id, values[i])
+			}
+			if c.Name == "activity_name" {
+				si_id_r = c
+			}
+			if c.Name == "amwaid" {
+				v_asid = c
+				v_aorderstatus = c
+			}
+			if c.Name == "utime" {
+				v_aend_deliverytime = c
+			}
+		}
 		if mapped == false {
 			req.Data[c.Name] = r.makeReqColumnData(&c, values[i])
 		}
 	}
+
 	//定制化需求
 	if rule.TableInfo.Name == "alp_merchant_order" {
 		for _, s := range r.c.Sources {
@@ -452,10 +498,56 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 		conn.Close()
 	}
 
+	//定制化需求
+	if rule.TableInfo.Name == "alp_merchant_order_activity" {
+		for _, s := range r.c.Sources {
+			sdatabase = s.Schema
+		}
+		time.Sleep(1000 * time.Millisecond)
+		aconn, _ := client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, sdatabase)
+		aconn.Ping()
+		aress, err := aconn.Execute("select amoid from alp_merchant_order_activity order by amoaid desc limit 0,1")
+		aamoid, _ := aress.GetIntByName(0, "amoid")
+		as_amoid := "select ifnull(shopfee,0) as shopfee,totalprice+ifnull(order_delivery_pay,0)-ifnull(delivery_pay,0) as totalprice,sid,orderstatus,end_deliverytime from alp_merchant_order where amoid=" + strconv.FormatInt(aamoid, 10)
+		//fmt.Printf("%s", s_amoid)
+		ares, err := aconn.Execute(as_amoid)
+		if err != nil {
+			log.Errorf("err %v ", err)
+		}
+		shopfee, _ := ares.GetFloatByName(0, "shopfee")
+		atotalprice, _ := ares.GetFloatByName(0, "totalprice")
+		asid, _ := ares.GetIntByName(0, "sid")
+		aorderstatus, _ := ares.GetIntByName(0, "orderstatus")
+		aend_deliverytime, _ := ares.GetStringByName(0, "end_deliverytime")
+		f_shopfee := fmt.Sprintf("%0.2f", shopfee)
+		f_atotalprice := fmt.Sprintf("%0.2f", atotalprice)
+		t, _ := time.Parse("2006-01-02 15:04:05", aend_deliverytime)
+		t_aend_deliverytime := t.Unix()
+		v_shopfee.Name = "shopfee"
+		v_atotalprice.Name = "totalprice"
+		v_asid.Name = "sid"
+		v_aorderstatus.Name = "orderstatus"
+		v_aend_deliverytime.Name = "end_deliverytime"
+		req.Data["shopfee"] = r.makeReqColumnData(&v_shopfee, f_shopfee)
+		req.Data["totalprice"] = r.makeReqColumnData(&v_atotalprice, f_atotalprice)
+		req.Data["sid"] = r.makeReqColumnData(&v_asid, asid)
+		req.Data["orderstatus"] = r.makeReqColumnData(&v_aorderstatus, aorderstatus)
+		req.Data["end_deliverytime"] = r.makeReqColumnData(&v_aend_deliverytime, t_aend_deliverytime)
+		//添加插入处理
+		si_id_r.Name = "id"
+		req.Data["id"] = r.makeReqColumnData(&si_id_r, si_id)
+		aconn.Close()
+	}
+
 	if rule.TableInfo.Name == "alp_dish_sales" {
 		//添加插入处理
 		percontact_r.Name = "percontact"
 		req.Data["percontact"] = r.makeReqColumnData(&percontact_r, spercontact)
+	}
+	if rule.TableInfo.Name == "alp_merchant_order" {
+		//添加插入处理
+		si_zwnk_r.Name = "i_zwnk"
+		req.Data["i_zwnk"] = r.makeReqColumnData(&si_zwnk_r, si_zwnk)
 	}
 }
 
