@@ -53,15 +53,11 @@ func (h *eventHandler) OnRotate(e *replication.RotateEvent) error {
 func (h *eventHandler) OnTableChanged(schema, table string) error {
 	// Re-read table structure
 	var err error
-	_, ok := h.r.rules[ruleKey(schema, table)]
+	rule, ok := h.r.rules[ruleKey(schema, table)]
 	if !ok {
-		err = h.r.newRule(schema, table)
-		if err == nil {
-			h.r.rules[ruleKey(schema, table)].TableInfo, err = h.r.canal.GetTable(schema, table)
-		}
-
+		// not in rule init pass
 	} else {
-		h.r.rules[ruleKey(schema, table)].TableInfo, err = h.r.canal.GetTable(schema, table)
+		rule.TableInfo, err = h.r.canal.GetTable(schema, table)
 	}
 	return err
 }
