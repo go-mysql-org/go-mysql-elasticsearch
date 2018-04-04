@@ -51,7 +51,15 @@ func (h *eventHandler) OnRotate(e *replication.RotateEvent) error {
 }
 
 func (h *eventHandler) OnTableChanged(schema, table string) error {
-	return nil
+	// Re-read table structure
+	var err error
+	rule, ok := h.r.rules[ruleKey(schema, table)]
+	if !ok {
+		// not in rule init pass
+	} else {
+		rule.TableInfo, err = h.r.canal.GetTable(schema, table)
+	}
+	return err
 }
 
 func (h *eventHandler) OnDDL(nextPos mysql.Position, _ *replication.QueryEvent) error {
