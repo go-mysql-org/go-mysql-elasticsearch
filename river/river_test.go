@@ -351,6 +351,23 @@ func (s *riverTestSuite) TestRiver(c *C) {
 		c.Assert(r.Found, Equals, true)
 		c.Assert(r.Source["es_title"], Equals, "hello")
 	}
+
+	// alter table
+	s.testExecute(c, "ALTER TABLE test_river ADD COLUMN new INT(10)")
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, new) VALUES (?, ?, ?, ?, ?, ?)", 1000, "abc", "hello", "e1", "a,b,c", 1)
+	s.testExecute(c, "ALTER TABLE test_river DROP COLUMN new")
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 1001, "abc", "hello", "e1", "a,b,c")
+
+	testWaitSyncDone(c, s.r)
+
+	r = s.testElasticGet(c, "1000")
+	c.Assert(r.Found, Equals, true)
+	c.Assert(r.Source["new"], Equals, float64(1))
+
+	r = s.testElasticGet(c, "1001")
+	c.Assert(r.Found, Equals, true)
+	_, ok := r.Source["new"]
+	c.Assert(ok, Equals, false)
 }
 
 func TestTableValidation(t *testing.T) {
