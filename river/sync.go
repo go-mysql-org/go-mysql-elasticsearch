@@ -51,6 +51,10 @@ func (h *eventHandler) OnRotate(e *replication.RotateEvent) error {
 }
 
 func (h *eventHandler) OnTableChanged(schema, table string) error {
+	err := h.r.updateRule(schema, table)
+	if err != nil && err != ErrRuleNotExist {
+		return errors.Trace(err)
+	}
 	return nil
 }
 
