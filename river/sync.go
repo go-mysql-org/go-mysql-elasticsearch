@@ -7,13 +7,11 @@ import (
 	"github.com/juju/errors"
 	"github.com/siddontang/go-mysql-elasticsearch/elastic"
 	"github.com/siddontang/go-mysql/canal"
-	"github.com/siddontang/go-mysql/client"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go-mysql/schema"
 	log "github.com/sirupsen/logrus"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -124,7 +122,6 @@ func (r *River) syncLoop() {
 	for {
 		needFlush := false
 		needSavePos := false
-
 		select {
 		case v := <-r.syncCh:
 			switch v := v.(type) {
@@ -364,7 +361,6 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 	var v_asid schema.TableColumn
 	var v_aorderstatus schema.TableColumn
 	var v_aend_deliverytime schema.TableColumn
-	var sdatabase string
 
 	req.Action = elastic.ActionIndex
 	for i, c := range rule.TableInfo.Columns {
@@ -446,20 +442,15 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 			req.Data[c.Name] = r.makeReqColumnData(&c, values[i])
 		}
 	}
-
 	//定制化需求
 	if rule.TableInfo.Name == "alp_merchant_order" {
-		for _, s := range r.c.Sources {
-			sdatabase = s.Schema
-		}
 		time.Sleep(1000 * time.Millisecond)
-		conn, _ := client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, sdatabase)
-		conn.Ping()
-		ress, err := conn.Execute("select amoid from alp_merchant_order order by amoid desc limit 0,1")
-		amoid, _ := ress.GetIntByName(0, "amoid")
-		s_amoid := "select sum(if(partstatus=2,partprice,0)) partprice,sum(price) price ,sum(if(itemname='餐盒费',price,0)) boxprice from alp_merchant_order_item where amoid=" + strconv.FormatInt(amoid, 10)
+		r.dbconn.Ping()
+		// ress, err := r.dbconn.Execute("select amoid from alp_merchant_order order by amoid desc limit 0,1")
+		// amoid, _ := ress.GetIntByName(0, "amoid")
+		s_amoid := "select sum(if(partstatus=2,partprice,0)) partprice,sum(price) price ,sum(if(itemname='餐盒费',price,0)) boxprice from alp_merchant_order_item where amoid=" + req.ID
 		//fmt.Printf("%s", s_amoid)
-		res, err := conn.Execute(s_amoid)
+		res, err := r.dbconn.Execute(s_amoid)
 		if err != nil {
 			log.Errorf("err %v ", err)
 		}
@@ -472,8 +463,8 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 		i_partprice.Name = "i_partprice"
 		i_price.Name = "price"
 		i_boxprice.Name = "i_boxprice"
-		a_amoid := "select sum(discount_acmount) discount_acmount,sum(platform_rate) platform_rate,sum(shop_rate) shop_rate from alp_merchant_order_activity  where amoid=" + strconv.FormatInt(amoid, 10)
-		rss, err := conn.Execute(a_amoid)
+		a_amoid := "select sum(discount_acmount) discount_acmount,sum(platform_rate) platform_rate,sum(shop_rate) shop_rate from alp_merchant_order_activity  where amoid=" + req.ID
+		rss, err := r.dbconn.Execute(a_amoid)
 		discount_acmount, _ := rss.GetFloatByName(0, "discount_acmount")
 		platform_rate, _ := rss.GetFloatByName(0, "platform_rate")
 		shop_rate, _ := rss.GetFloatByName(0, "shop_rate")
@@ -483,8 +474,9 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 		v_discount_acmount.Name = "v_discount_acmount"
 		v_platform_rate.Name = "v_platform_rate"
 		v_shop_rate.Name = "v_shop_rate"
-		e_amoid := "select sum(fee) fee from alp_merchant_order_extras where amoid=" + strconv.FormatInt(amoid, 10)
-		rse, err := conn.Execute(e_amoid)
+		//e_amoid := "select sum(fee) fee from alp_merchant_order_extras where amoid=" + strconv.FormatInt(req.ID, 10)
+		e_amoid := "select sum(fee) fee from alp_merchant_order_extras where amoid=" + req.ID
+		rse, err := r.dbconn.Execute(e_amoid)
 		fee, _ := rse.GetFloatByName(0, "fee")
 		f_fee := fmt.Sprintf("%0.2f", fee)
 		v_fee.Name = "v_fee"
@@ -495,22 +487,17 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 		req.Data["v_platform_rate"] = r.makeReqColumnData(&v_platform_rate, f_platform_rate)
 		req.Data["v_shop_rate"] = r.makeReqColumnData(&v_shop_rate, f_shop_rate)
 		req.Data["v_fee"] = r.makeReqColumnData(&v_fee, f_fee)
-		conn.Close()
 	}
 
 	//定制化需求
 	if rule.TableInfo.Name == "alp_merchant_order_activity" {
-		for _, s := range r.c.Sources {
-			sdatabase = s.Schema
-		}
 		time.Sleep(1000 * time.Millisecond)
-		aconn, _ := client.Connect(r.c.MyAddr, r.c.MyUser, r.c.MyPassword, sdatabase)
-		aconn.Ping()
-		aress, err := aconn.Execute("select amoid from alp_merchant_order_activity order by amoaid desc limit 0,1")
-		aamoid, _ := aress.GetIntByName(0, "amoid")
-		as_amoid := "select ifnull(shopfee,0) as shopfee,totalprice+ifnull(order_delivery_pay,0)-ifnull(delivery_pay,0) as totalprice,sid,orderstatus,end_deliverytime from alp_merchant_order where amoid=" + strconv.FormatInt(aamoid, 10)
+		r.dbconn.Ping()
+		// aress, err := r.dbconn.Execute("select amoid from alp_merchant_order_activity order by amoaid desc limit 0,1")
+		// aamoid, _ := aress.GetIntByName(0, "amoid")
+		as_amoid := "select ifnull(shopfee,0) as shopfee,totalprice+ifnull(order_delivery_pay,0)-ifnull(delivery_pay,0) as totalprice,sid,orderstatus,end_deliverytime from alp_merchant_order where amoid=" + req.ID
 		//fmt.Printf("%s", s_amoid)
-		ares, err := aconn.Execute(as_amoid)
+		ares, err := r.dbconn.Execute(as_amoid)
 		if err != nil {
 			log.Errorf("err %v ", err)
 		}
@@ -536,7 +523,6 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 		//添加插入处理
 		si_id_r.Name = "id"
 		req.Data["id"] = r.makeReqColumnData(&si_id_r, si_id)
-		aconn.Close()
 	}
 
 	if rule.TableInfo.Name == "alp_dish_sales" {
