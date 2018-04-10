@@ -393,11 +393,11 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 			//添加拼接字符串处理
 			switch c.Name {
 			case "contact":
-				si_zwnk = fmt.Sprintf("%s %s_", si_zwnk, values[i])
+				si_zwnk = fmt.Sprintf("%s%s-", si_zwnk, values[i])
 			case "mobile":
-				si_zwnk = fmt.Sprintf("%s %s_", si_zwnk, values[i])
+				si_zwnk = fmt.Sprintf("%s%s-", si_zwnk, values[i])
 			case "address":
-				si_zwnk = fmt.Sprintf("%s %s_", si_zwnk, values[i])
+				si_zwnk = fmt.Sprintf("%s%s", si_zwnk, values[i])
 				si_zwnk_r = c
 			}
 		}
@@ -406,14 +406,14 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 			//添加拼接字符串处理
 			switch c.Name {
 			case "category_name":
-				spercontact = fmt.Sprintf("%s %s_", spercontact, values[i])
+				spercontact = fmt.Sprintf("%s%s_", spercontact, values[i])
 			case "dish_name":
-				spercontact = fmt.Sprintf("%s %s_", spercontact, values[i])
+				spercontact = fmt.Sprintf("%s%s_", spercontact, values[i])
 				percontact_r = c
 			case "sku_name":
-				spercontact = fmt.Sprintf("%s %s_", spercontact, values[i])
+				spercontact = fmt.Sprintf("%s%s_", spercontact, values[i])
 			case "dishsno":
-				spercontact = fmt.Sprintf("%s %s", spercontact, values[i])
+				spercontact = fmt.Sprintf("%s%s", spercontact, values[i])
 			}
 		}
 
@@ -421,15 +421,15 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 			//添加拼接字符串处理
 			switch c.Name {
 			case "activity_type":
-				si_id = fmt.Sprintf("%s %s_", si_id, values[i])
+				si_id = fmt.Sprintf("%s%s_", si_id, values[i])
 			case "discount_acmount":
-				si_id = fmt.Sprintf("%s %s_", si_id, values[i])
+				si_id = fmt.Sprintf("%s%s_", si_id, values[i])
 			case "shop_rate":
-				si_id = fmt.Sprintf("%s %s_", si_id, values[i])
+				si_id = fmt.Sprintf("%s%s_", si_id, values[i])
 				v_shopfee = c
 				v_atotalprice = c
 			case "source":
-				si_id = fmt.Sprintf("%s %s", si_id, values[i])
+				si_id = fmt.Sprintf("%s%s", si_id, values[i])
 			}
 			if c.Name == "activity_name" {
 				si_id_r = c
