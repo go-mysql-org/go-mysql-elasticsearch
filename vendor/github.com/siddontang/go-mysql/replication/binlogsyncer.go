@@ -57,6 +57,9 @@ type BinlogSyncerConfig struct {
 	// We will use Local location for timestamp and UTC location for datatime.
 	ParseTime bool
 
+	// Use decimal.Decimal structure for decimals.
+	UseDecimal bool
+
 	// RecvBufferSize sets the size in bytes of the operating system's receive buffer associated with the connection.
 	RecvBufferSize int
 
@@ -65,6 +68,9 @@ type BinlogSyncerConfig struct {
 
 	// read timeout
 	ReadTimeout time.Duration
+
+	// maximum number of attempts to re-establish a broken connection
+	MaxReconnectAttempts int
 }
 
 // BinlogSyncer syncs binlog event from server.
@@ -91,6 +97,8 @@ type BinlogSyncer struct {
 	cancel context.CancelFunc
 
 	lastConnectionID uint32
+
+	retryCount int
 }
 
 // NewBinlogSyncer creates the BinlogSyncer with cfg.
@@ -107,6 +115,7 @@ func NewBinlogSyncer(cfg BinlogSyncerConfig) *BinlogSyncer {
 	b.parser = NewBinlogParser()
 	b.parser.SetRawMode(b.cfg.RawModeEnabled)
 	b.parser.SetParseTime(b.cfg.ParseTime)
+	b.parser.SetUseDecimal(b.cfg.UseDecimal)
 	b.useGTID = false
 	b.running = false
 	b.ctx, b.cancel = context.WithCancel(context.Background())
@@ -253,7 +262,7 @@ func (b *BinlogSyncer) registerSlave() error {
 	return nil
 }
 
-func (b *BinlogSyncer) enalbeSemiSync() error {
+func (b *BinlogSyncer) enableSemiSync() error {
 	if !b.cfg.SemiSyncEnabled {
 		return nil
 	}
@@ -286,7 +295,7 @@ func (b *BinlogSyncer) prepare() error {
 		return errors.Trace(err)
 	}
 
-	if err := b.enalbeSemiSync(); err != nil {
+	if err := b.enableSemiSync(); err != nil {
 		return errors.Trace(err)
 	}
 
@@ -597,14 +606,20 @@ func (b *BinlogSyncer) onStream(s *BinlogStreamer) {
 				return
 			}
 
-			// TODO: add a max retry count.
 			for {
 				select {
 				case <-b.ctx.Done():
 					s.close()
 					return
 				case <-time.After(time.Second):
+					b.retryCount++
 					if err = b.retrySync(); err != nil {
+						if b.cfg.MaxReconnectAttempts > 0 && b.retryCount >= b.cfg.MaxReconnectAttempts {
+							log.Errorf("retry sync err: %v, exceeded max retries (%d)", err, b.cfg.MaxReconnectAttempts)
+							s.closeWithError(err)
+							return
+						}
+
 						log.Errorf("retry sync err: %v, wait 1s and retry again", err)
 						continue
 					}
@@ -621,6 +636,9 @@ func (b *BinlogSyncer) onStream(s *BinlogStreamer) {
 		if b.cfg.ReadTimeout > 0 {
 			b.c.SetReadDeadline(time.Now().Add(b.cfg.ReadTimeout))
 		}
+
+		// Reset retry count on successful packet receieve
+		b.retryCount = 0
 
 		switch data[0] {
 		case OK_HEADER:
@@ -730,4 +748,9 @@ func (b *BinlogSyncer) getGtidSet() GTIDSet {
 	}
 
 	return gtidSet
+}
+
+// LastConnectionID returns last connectionID.
+func (b *BinlogSyncer) LastConnectionID() uint32 {
+	return b.lastConnectionID
 }

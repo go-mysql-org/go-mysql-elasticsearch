@@ -204,6 +204,7 @@ type = "river"
 }
 
 func (s *riverTestSuite) testExecute(c *C, query string, args ...interface{}) {
+	c.Logf("query %s, args: %v", query, args)
 	_, err := s.c.Execute(query, args...)
 	c.Assert(err, IsNil)
 }
@@ -277,30 +278,30 @@ func (s *riverTestSuite) TestRiver(c *C) {
 
 	var r *elastic.Response
 	r = s.testElasticGet(c, "1")
-	c.Assert(r.Found, Equals, true)
+	c.Assert(r.Found, IsTrue)
 	c.Assert(r.Source["tenum"], Equals, "e1")
 	c.Assert(r.Source["tset"], Equals, "a,b")
 
 	r = s.testElasticGet(c, "1:first")
-	c.Assert(r.Found, Equals, true)
+	c.Assert(r.Found, IsTrue)
 
 	r = s.testElasticGet(c, "9200")
-	c.Assert(r.Found, Equals, true)
+	c.Assert(r.Found, IsTrue)
 	switch v := r.Source["info"].(type) {
 	case map[string]interface{}:
 		c.Assert(v["first"], Equals, "a")
 		c.Assert(v["second"], Equals, "b")
 	default:
-		c.Assert(v, Equals, nil)
-		c.Assert(true, Equals, false)
+		c.Assert(v, IsNil)
+		c.Assert(true, IsFalse)
 	}
 
 	r = s.testElasticGet(c, "100")
-	c.Assert(r.Found, Equals, false)
+	c.Assert(r.Found, IsFalse)
 
 	for i := 0; i < 10; i++ {
 		r = s.testElasticGet(c, fmt.Sprintf("%d", 5+i))
-		c.Assert(r.Found, Equals, true)
+		c.Assert(r.Found, IsTrue)
 		c.Assert(r.Source["es_title"], Equals, "abc")
 	}
 
@@ -322,10 +323,10 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	testWaitSyncDone(c, s.r)
 
 	r = s.testElasticGet(c, "1")
-	c.Assert(r.Found, Equals, false)
+	c.Assert(r.Found, IsFalse)
 
 	r = s.testElasticGet(c, "2")
-	c.Assert(r.Found, Equals, true)
+	c.Assert(r.Found, IsTrue)
 	c.Assert(r.Source["es_title"], Equals, "second 2")
 	c.Assert(r.Source["tenum"], Equals, "e3")
 	c.Assert(r.Source["tset"], Equals, "a,b,c")
@@ -333,23 +334,40 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	c.Assert(r.Source["tbit"], Equals, float64(1))
 
 	r = s.testElasticGet(c, "4")
-	c.Assert(r.Found, Equals, true)
+	c.Assert(r.Found, IsTrue)
 	c.Assert(r.Source["tenum"], Equals, "")
 	c.Assert(r.Source["tset"], Equals, "a,b,c")
 	c.Assert(r.Source["tbit"], Equals, float64(0))
 
 	r = s.testElasticGet(c, "3")
-	c.Assert(r.Found, Equals, false)
+	c.Assert(r.Found, IsFalse)
 
 	r = s.testElasticGet(c, "30")
-	c.Assert(r.Found, Equals, true)
+	c.Assert(r.Found, IsTrue)
 	c.Assert(r.Source["es_title"], Equals, "second 30")
 
 	for i := 0; i < 10; i++ {
 		r = s.testElasticGet(c, fmt.Sprintf("%d", 5+i))
-		c.Assert(r.Found, Equals, true)
+		c.Assert(r.Found, IsTrue)
 		c.Assert(r.Source["es_title"], Equals, "hello")
 	}
+
+	// alter table
+	s.testExecute(c, "ALTER TABLE test_river ADD COLUMN new INT(10)")
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, new) VALUES (?, ?, ?, ?, ?, ?)", 1000, "abc", "hello", "e1", "a,b,c", 1)
+	s.testExecute(c, "ALTER TABLE test_river DROP COLUMN new")
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", 1001, "abc", "hello", "e1", "a,b,c")
+
+	testWaitSyncDone(c, s.r)
+
+	r = s.testElasticGet(c, "1000")
+	c.Assert(r.Found, IsTrue)
+	c.Assert(r.Source["new"], Equals, float64(1))
+
+	r = s.testElasticGet(c, "1001")
+	c.Assert(r.Found, IsTrue)
+	_, ok := r.Source["new"]
+	c.Assert(ok, IsFalse)
 }
 
 func TestTableValidation(t *testing.T) {

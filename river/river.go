@@ -13,6 +13,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var ErrRuleNotExist = errors.New("rule is not exist")
+
 // In Elasticsearch, river is a pluggable service within Elasticsearch pulling data then indexing it into Elasticsearch.
 // We use this definition here too, although it may not run within Elasticsearch.
 // Maybe later I can implement a acutal river in Elasticsearch, but I must learn java. :-)
@@ -134,6 +136,22 @@ func (r *River) newRule(schema, table string) error {
 	}
 
 	r.rules[key] = newDefaultRule(schema, table)
+	return nil
+}
+
+func (r *River) updateRule(schema, table string) error {
+	rule, ok := r.rules[ruleKey(schema, table)]
+	if !ok {
+		return ErrRuleNotExist
+	}
+
+	tableInfo, err := r.canal.GetTable(schema, table)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	rule.TableInfo = tableInfo
+
 	return nil
 }
 

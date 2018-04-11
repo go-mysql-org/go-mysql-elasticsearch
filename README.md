@@ -174,6 +174,21 @@ You can ignore these tables in the configuration like:
 skip_no_pk_table = true
 ```
 
+## Elasticsearch Pipeline
+You can use [Ingest Node Pipeline](https://www.elastic.co/guide/en/elasticsearch/reference/current/ingest.html) to pre-process documents before indexing, like JSON string decode, merge fileds and more.
+
+```
+[[rule]]
+schema = "test"
+table = "t1"
+index = "t"
+type = "_doc"
+
+# pipeline id
+pipeline = "my-pipeline-id"
+```
+Node: you should [create pipeline](https://www.elastic.co/guide/en/elasticsearch/reference/current/put-pipeline-api.html) manually and Elasticsearch >= 5.0.
+
 ## Why not other rivers?
 
 Although there are some other MySQL rivers for Elasticsearch, like [elasticsearch-river-jdbc](https://github.com/jprante/elasticsearch-river-jdbc), [elasticsearch-river-mysql](https://github.com/scharron/elasticsearch-river-mysql), I still want to build a new one with Go, why?
