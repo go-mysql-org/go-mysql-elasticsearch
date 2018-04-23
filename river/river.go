@@ -1,10 +1,10 @@
 package river
 
 import (
-	"strings"
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/juju/errors"
@@ -34,7 +34,7 @@ type River struct {
 
 	st *stat
 
-	master *masterInfo
+	master masterInfo
 
 	syncCh chan interface{}
 }
