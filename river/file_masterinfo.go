@@ -9,12 +9,12 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/juju/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go/ioutil2"
+	log "github.com/sirupsen/logrus"
 )
 
-type masterInfo struct {
+type fileMasterInfo struct {
 	sync.RWMutex
 
 	Name string `toml:"bin_name"`
@@ -24,8 +24,8 @@ type masterInfo struct {
 	lastSaveTime time.Time
 }
 
-func loadMasterInfo(dataDir string) (*masterInfo, error) {
-	var m masterInfo
+func loadFileMasterInfo(dataDir string) (masterInfo, error) {
+	var m fileMasterInfo
 
 	if len(dataDir) == 0 {
 		return &m, nil
@@ -50,7 +50,7 @@ func loadMasterInfo(dataDir string) (*masterInfo, error) {
 	return &m, errors.Trace(err)
 }
 
-func (m *masterInfo) Save(pos mysql.Position) error {
+func (m *fileMasterInfo) Save(pos mysql.Position) error {
 	log.Infof("save position %s", pos)
 
 	m.Lock()
@@ -82,7 +82,7 @@ func (m *masterInfo) Save(pos mysql.Position) error {
 	return errors.Trace(err)
 }
 
-func (m *masterInfo) Position() mysql.Position {
+func (m *fileMasterInfo) Position() mysql.Position {
 	m.RLock()
 	defer m.RUnlock()
 
@@ -92,7 +92,7 @@ func (m *masterInfo) Position() mysql.Position {
 	}
 }
 
-func (m *masterInfo) Close() error {
+func (m *fileMasterInfo) Close() error {
 	pos := m.Position()
 
 	return m.Save(pos)
