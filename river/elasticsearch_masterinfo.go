@@ -59,7 +59,10 @@ func loadElasticsearchMasterInfo(dataPath string) (masterInfo, error) {
 		m.id = id
 	}
 
-	m.loadMasterInfo()
+	err = m.loadMasterInfo()
+	if err != nil {
+		return nil, err
+	}
 
 	return &m, nil
 }
@@ -106,16 +109,16 @@ func (m *elasticsearchMasterInfo) loadMasterInfo() error {
 	}
 
 	info, err := m.es.Get(m.index, m.docType, m.id)
-	if info.Code == http.StatusOK {
+	if err == nil && (info.Code == http.StatusOK || info.Code == http.StatusNotFound) {
 		item := info.ResponseItem
 		if item.Found {
 			source := item.Source
 			m.Name = source["name"].(string)
 			m.Pos = uint32(source["pos"].(float64))
-			return nil
 		}
+		return nil
 	}
-	return err
+	return errors.Wrap(err, errors.New("loadMasterInfo error"))
 }
 
 func (m *elasticsearchMasterInfo) createMapping() error {
