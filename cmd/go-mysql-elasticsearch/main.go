@@ -9,7 +9,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/siddontang/go-mysql-elasticsearch/river"
-	log "github.com/sirupsen/logrus"
+	"gopkg.in/birkirb/loggers.v1/log"
 )
 
 var configFile = flag.String("config", "./etc/river.toml", "go-mysql-elasticsearch config file")
@@ -27,7 +27,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
 
-	level, _ := log.ParseLevel(*logLevel)
+	level := log.ParseLevel(*logLevel)
 	log.SetLevel(level)
 
 	sc := make(chan os.Signal, 1)

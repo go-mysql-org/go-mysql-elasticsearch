@@ -9,9 +9,9 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/juju/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go/ioutil2"
+	"gopkg.in/birkirb/loggers.v1/log"
 )
 
 type masterInfo struct {
