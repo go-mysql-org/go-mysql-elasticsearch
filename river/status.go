@@ -8,7 +8,7 @@ import (
 	"net/http/pprof"
 
 	"github.com/siddontang/go/sync2"
-	log "github.com/sirupsen/logrus"
+	"gopkg.in/birkirb/loggers.v1/log"
 )
 
 type stat struct {

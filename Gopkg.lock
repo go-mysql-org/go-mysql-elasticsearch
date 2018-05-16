@@ -39,7 +39,7 @@
     "ioutil2",
     "sync2"
   ]
-  revision = "cb568a3e5cc06256f91a2da5a87455f717eb33f4"
+  revision = "2b7082d296ba89ae7ead0f977816bddefb65df9d"
 
 [[projects]]
   branch = "master"
@@ -53,32 +53,23 @@
     "replication",
     "schema"
   ]
-  revision = "919af6c46b676b3c5ea0856eafbff42660a6b0ce"
-
-[[projects]]
-  name = "github.com/sirupsen/logrus"
-  packages = ["."]
-  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
-  version = "v1.0.5"
+  revision = "ef96922d9960d62b382118edb4a18526055e2951"
 
 [[projects]]
   branch = "master"
-  name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
-  revision = "88942b9c40a4c9d203b82b3731787b672d6e809b"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/sys"
+  name = "gopkg.in/birkirb/loggers.v1"
   packages = [
-    "unix",
-    "windows"
+    ".",
+    "log",
+    "mappers",
+    "mappers/stdlib"
   ]
-  revision = "378d26f46672a356c46195c28f61bdb4c0a781dd"
+  revision = "fa51471f8169216876525e7b6c9fbd0c8789b57a"
+  source = "https://github.com/siddontang/loggers.git"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "353e3eb701caf21aa4a48fa82fc732e77fa79033fd27bb4091c81dbdd0e57576"
+  inputs-digest = "f6ac894c2b53acb3d996d3324956a2f487ee253525e40aa05164c9e013f75e49"
   solver-name = "gps-cdcl"
   solver-version = 1
