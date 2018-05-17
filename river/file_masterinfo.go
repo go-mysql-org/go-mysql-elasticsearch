@@ -11,7 +11,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go/ioutil2"
-	log "github.com/sirupsen/logrus"
+	"gopkg.in/birkirb/loggers.v1/log"
 )
 
 type fileMasterInfo struct {
