@@ -16,6 +16,9 @@ es_pass = ""
 # Path to store data, like master.info, if not set or empty,
 # we must use this to support breakpoint resume syncing. 
 # TODO: support other storage, like etcd. 
+# Beta feature: Store to elasticsearch
+# data_dir = "es:http://username:password@hostname:9200/index/type?id=1001"
+# recommend id = server_id
 data_dir = "./var"
 
 # Inner Http status address
