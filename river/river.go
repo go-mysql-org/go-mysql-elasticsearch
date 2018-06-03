@@ -34,7 +34,7 @@ type River struct {
 
 	st *stat
 
-	master *masterInfo
+	master masterInfo
 
 	syncCh chan interface{}
 }
