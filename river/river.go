@@ -13,9 +13,10 @@ import (
 	"gopkg.in/birkirb/loggers.v1/log"
 )
 
+// ErrRuleNotExist is the error if rule is not defined.
 var ErrRuleNotExist = errors.New("rule is not exist")
 
-// In Elasticsearch, river is a pluggable service within Elasticsearch pulling data then indexing it into Elasticsearch.
+// River is a pluggable service within Elasticsearch pulling data then indexing it into Elasticsearch.
 // We use this definition here too, although it may not run within Elasticsearch.
 // Maybe later I can implement a acutal river in Elasticsearch, but I must learn java. :-)
 type River struct {
@@ -39,6 +40,7 @@ type River struct {
 	syncCh chan interface{}
 }
 
+// NewRiver creates the River from config
 func NewRiver(c *Config) (*River, error) {
 	r := new(River)
 
@@ -73,7 +75,7 @@ func NewRiver(c *Config) (*River, error) {
 	cfg.Addr = r.c.ESAddr
 	cfg.User = r.c.ESUser
 	cfg.Password = r.c.ESPassword
-	cfg.Https = r.c.ESHttps
+	cfg.HTTPS = r.c.ESHttps
 	r.es = elastic.NewClient(cfg)
 
 	r.st = &stat{r: r}
@@ -122,7 +124,7 @@ func (r *River) prepareCanal() error {
 	} else {
 		// many dbs, can only assign databases to dump
 		keys := make([]string, 0, len(dbs))
-		for key, _ := range dbs {
+		for key := range dbs {
 			keys = append(keys, key)
 		}
 
@@ -271,9 +273,9 @@ func (r *River) prepareRule() error {
 		if len(rule.TableInfo.PKColumns) == 0 {
 			if !r.c.SkipNoPkTable {
 				return errors.Errorf("%s.%s must have a PK for a column", rule.Schema, rule.Table)
-			} else {
-				log.Errorf("ignored table without a primary key: %s\n", rule.TableInfo.Name)
 			}
+
+			log.Errorf("ignored table without a primary key: %s\n", rule.TableInfo.Name)
 		} else {
 			rules[key] = rule
 		}
@@ -301,10 +303,12 @@ func (r *River) Run() error {
 	return nil
 }
 
+// Ctx returns the internal context for outside use.
 func (r *River) Ctx() context.Context {
 	return r.ctx
 }
 
+// Close closes the River
 func (r *River) Close() {
 	log.Infof("closing river")
 

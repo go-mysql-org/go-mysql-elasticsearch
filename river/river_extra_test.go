@@ -34,10 +34,10 @@ func (s *riverTestSuite) setupExtra(c *C) (r *River) {
 	s.testExecute(c, fmt.Sprintf(schema, "test_river_parent"))
 
 	cfg := new(Config)
-	cfg.MyAddr = *my_addr
+	cfg.MyAddr = *myAddr
 	cfg.MyUser = "root"
 	cfg.MyPassword = ""
-	cfg.ESAddr = *es_addr
+	cfg.ESAddr = *esAddr
 
 	cfg.ServerID = 1001
 	cfg.Flavor = "mysql"
@@ -90,13 +90,13 @@ func (s *riverTestSuite) testElasticExtraExists(c *C, id string, parent string, 
 	index := "river"
 	docType := "river_extra"
 
-	reqUrl := fmt.Sprintf("http://%s/%s/%s/%s?parent=%s", s.r.es.Addr,
+	reqURL := fmt.Sprintf("http://%s/%s/%s/%s?parent=%s", s.r.es.Addr,
 		url.QueryEscape(index),
 		url.QueryEscape(docType),
 		url.QueryEscape(id),
 		url.QueryEscape(parent))
 
-	r, err := s.r.es.Do("HEAD", reqUrl, nil)
+	r, err := s.r.es.Do("HEAD", reqURL, nil)
 	c.Assert(err, IsNil)
 
 	if exist {

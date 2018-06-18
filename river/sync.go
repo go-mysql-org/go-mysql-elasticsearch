@@ -41,8 +41,8 @@ type eventHandler struct {
 
 func (h *eventHandler) OnRotate(e *replication.RotateEvent) error {
 	pos := mysql.Position{
-		string(e.NextLogName),
-		uint32(e.Position),
+		Name: string(e.NextLogName),
+		Pos:  uint32(e.Position),
 	}
 
 	h.r.syncCh <- posSaver{pos, true}
