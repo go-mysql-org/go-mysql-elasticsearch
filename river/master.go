@@ -87,8 +87,8 @@ func (m *masterInfo) Position() mysql.Position {
 	defer m.RUnlock()
 
 	return mysql.Position{
-		m.Name,
-		m.Pos,
+		Name: m.Name,
+		Pos:  m.Pos,
 	}
 }
 

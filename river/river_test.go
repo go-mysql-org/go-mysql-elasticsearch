@@ -13,8 +13,8 @@ import (
 	"github.com/siddontang/go-mysql/mysql"
 )
 
-var my_addr = flag.String("my_addr", "127.0.0.1:3306", "MySQL addr")
-var es_addr = flag.String("es_addr", "127.0.0.1:9200", "Elasticsearch addr")
+var myAddr = flag.String("my_addr", "127.0.0.1:3306", "MySQL addr")
+var esAddr = flag.String("es_addr", "127.0.0.1:9200", "Elasticsearch addr")
 
 func Test(t *testing.T) {
 	TestingT(t)
@@ -29,7 +29,7 @@ var _ = Suite(&riverTestSuite{})
 
 func (s *riverTestSuite) SetUpSuite(c *C) {
 	var err error
-	s.c, err = client.Connect(*my_addr, "root", "", "test")
+	s.c, err = client.Connect(*myAddr, "root", "", "test")
 	c.Assert(err, IsNil)
 
 	s.testExecute(c, "SET SESSION binlog_format = 'ROW'")
@@ -48,7 +48,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
             PRIMARY KEY(id)) ENGINE=INNODB;
     `
 
-	schema_json := `
+	schemaJSON := `
 	CREATE TABLE IF NOT EXISTS %s (
 	    id INT,
 	    info JSON,
@@ -60,7 +60,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 	s.testExecute(c, "DROP TABLE IF EXISTS test_for_json")
 	s.testExecute(c, fmt.Sprintf(schema, "test_river"))
 	s.testExecute(c, fmt.Sprintf(schema, "test_for_id"))
-	s.testExecute(c, fmt.Sprintf(schema_json, "test_for_json"))
+	s.testExecute(c, fmt.Sprintf(schemaJSON, "test_for_json"))
 
 	for i := 0; i < 10; i++ {
 		table := fmt.Sprintf("test_river_%04d", i)
@@ -69,11 +69,11 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 	}
 
 	cfg := new(Config)
-	cfg.MyAddr = *my_addr
+	cfg.MyAddr = *myAddr
 	cfg.MyUser = "root"
 	cfg.MyPassword = ""
 	cfg.MyCharset = "utf8"
-	cfg.ESAddr = *es_addr
+	cfg.ESAddr = *esAddr
 
 	cfg.ServerID = 1001
 	cfg.Flavor = "mysql"
