@@ -39,7 +39,7 @@
     "ioutil2",
     "sync2"
   ]
-  revision = "2b7082d296ba89ae7ead0f977816bddefb65df9d"
+  revision = "bdc77568d726a8702315ec4eafda030b6abc4f43"
 
 [[projects]]
   branch = "master"
@@ -53,7 +53,7 @@
     "replication",
     "schema"
   ]
-  revision = "ef96922d9960d62b382118edb4a18526055e2951"
+  revision = "fb8f61a50302b65f98d88cf0c5d02a4631fa6ec6"
 
 [[projects]]
   branch = "master"
