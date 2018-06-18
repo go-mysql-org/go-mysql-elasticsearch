@@ -44,7 +44,8 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
             tenum ENUM("e1", "e2", "e3"),
             tset SET("a", "b", "c"),
             tbit BIT(1) default 1,
-            tdatetime DATETIME DEFAULT NULL,
+			tdatetime DATETIME DEFAULT NULL,
+			ip INT UNSIGNED DEFAULT 0,
             PRIMARY KEY(id)) ENGINE=INNODB;
     `
 
@@ -224,6 +225,9 @@ func (s *riverTestSuite) testPrepareData(c *C) {
 
 	datetime := time.Now().Format(mysql.TimeFormat)
 	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tdatetime, mydate) VALUES (?, ?, ?, ?, ?, ?, ?)", 16, "test datetime", "hello go 16", "e1", "a,b", datetime, 1458131094)
+
+	// test ip
+	s.testExecute(c, "INSERT test_river (id, ip) VALUES (?, ?)", 17, 0)
 }
 
 func (s *riverTestSuite) testElasticGet(c *C, id string) *elastic.Response {
@@ -320,6 +324,9 @@ func (s *riverTestSuite) TestRiver(c *C) {
 		s.testExecute(c, fmt.Sprintf("UPDATE %s SET title = ? WHERE id = ?", table), "hello", 5+i)
 	}
 
+	// test ip
+	s.testExecute(c, "UPDATE test_river set ip = ? WHERE id = ?", 3748168280, 17)
+
 	testWaitSyncDone(c, s.r)
 
 	r = s.testElasticGet(c, "1")
@@ -351,6 +358,11 @@ func (s *riverTestSuite) TestRiver(c *C) {
 		c.Assert(r.Found, IsTrue)
 		c.Assert(r.Source["es_title"], Equals, "hello")
 	}
+
+	// test ip
+	r = s.testElasticGet(c, "17")
+	c.Assert(r.Found, IsTrue)
+	c.Assert(r.Source["ip"], Equals, float64(3748168280))
 
 	// alter table
 	s.testExecute(c, "ALTER TABLE test_river ADD COLUMN new INT(10)")

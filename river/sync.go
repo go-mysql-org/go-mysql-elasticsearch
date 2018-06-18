@@ -418,14 +418,14 @@ func (r *River) getDocID(rule *Rule, row []interface{}) (string, error) {
 		err error
 	)
 	if rule.ID == nil {
-		ids, err = canal.GetPKValues(rule.TableInfo, row)
+		ids, err = rule.TableInfo.GetPKValues(row)
 		if err != nil {
 			return "", err
 		}
 	} else {
 		ids = make([]interface{}, 0, len(rule.ID))
 		for _, column := range rule.ID {
-			value, err := canal.GetColumnValue(rule.TableInfo, column, row)
+			value, err := rule.TableInfo.GetColumnValue(column, row)
 			if err != nil {
 				return "", err
 			}
