@@ -8,8 +8,8 @@ import (
 	"syscall"
 
 	"github.com/juju/errors"
+	"github.com/siddontang/go-log/log"
 	"github.com/siddontang/go-mysql-elasticsearch/river"
-	"gopkg.in/birkirb/loggers.v1/log"
 )
 
 var configFile = flag.String("config", "./etc/river.toml", "go-mysql-elasticsearch config file")
