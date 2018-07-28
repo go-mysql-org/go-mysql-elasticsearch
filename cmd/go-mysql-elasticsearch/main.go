@@ -27,8 +27,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
 
-	level := log.ParseLevel(*logLevel)
-	log.SetLevel(level)
+	log.SetLevelByName(*logLevel)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
