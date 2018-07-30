@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/juju/errors"
-	"github.com/siddontang/go-log/log"
 	"github.com/siddontang/go-mysql/mysql"
 )
 
@@ -80,13 +79,11 @@ func Parse(r io.Reader, h ParseHandler, parseBinlogPos bool) error {
 
 			values, err := parseValues(m[0][2])
 			if err != nil {
-				return errors.Errorf("parse values %v err %v", line, err)
+				return errors.Errorf("parse values %v err", line)
 			}
 
 			if err = h.Data(db, table, values); err != nil && err != ErrSkip {
 				return errors.Trace(err)
-			} else if err == ErrSkip {
-				log.Errorf("handle data %v err", line)
 			}
 		}
 	}

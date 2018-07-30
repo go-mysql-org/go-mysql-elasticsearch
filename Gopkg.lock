@@ -62,7 +62,7 @@
     "replication",
     "schema"
   ]
-  revision = "51eceecc377e5de21b7e5f43d3fb4218d305ac4a"
+  revision = "2d151e326c1a7193d6c374dba6fbb0db3435bf05"
 
 [solve-meta]
   analyzer-name = "dep"
