@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/siddontang/go-log/log"
 	"github.com/siddontang/go-mysql/client"
 	"github.com/siddontang/go-mysql/dump"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go-mysql/schema"
-	"gopkg.in/birkirb/loggers.v1/log"
 )
 
 // Canal can sync your MySQL data into everywhere, like Elasticsearch, Redis, etc...
@@ -147,6 +147,8 @@ func (c *Canal) prepareDumper() error {
 	c.dumper.SetWhere(c.cfg.Dump.Where)
 	c.dumper.SkipMasterData(c.cfg.Dump.SkipMasterData)
 	c.dumper.SetMaxAllowedPacket(c.cfg.Dump.MaxAllowedPacketMB)
+	// Use hex blob for mysqldump
+	c.dumper.SetHexBlob(true)
 
 	for _, ignoreTable := range c.cfg.Dump.IgnoreTables {
 		if seps := strings.Split(ignoreTable, ","); len(seps) == 2 {
@@ -178,7 +180,7 @@ func (c *Canal) RunFrom(pos mysql.Position) error {
 }
 
 func (c *Canal) StartFromGTID(set mysql.GTIDSet) error {
-	c.master.UpdateGTID(set)
+	c.master.UpdateGTIDSet(set)
 
 	return c.Run()
 }
@@ -455,6 +457,6 @@ func (c *Canal) SyncedPosition() mysql.Position {
 	return c.master.Position()
 }
 
-func (c *Canal) SyncedGTID() mysql.GTIDSet {
-	return c.master.GTID()
+func (c *Canal) SyncedGTIDSet() mysql.GTIDSet {
+	return c.master.GTIDSet()
 }

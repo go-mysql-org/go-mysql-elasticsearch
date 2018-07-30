@@ -45,12 +45,6 @@
   branch = "master"
   name = "github.com/siddontang/go-mysql"
 
-[[constraint]]
-  name = "gopkg.in/birkirb/loggers.v1"
-  branch = "master"
-  source = "https://github.com/siddontang/loggers.git"
-
-
 [prune]
   go-tests = true
   unused-packages = true

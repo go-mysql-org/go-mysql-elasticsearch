@@ -12,9 +12,9 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/satori/go.uuid"
+	"github.com/siddontang/go-log/log"
 	"github.com/siddontang/go-mysql/client"
 	. "github.com/siddontang/go-mysql/mysql"
-	"gopkg.in/birkirb/loggers.v1/log"
 )
 
 var (
@@ -101,6 +101,10 @@ type BinlogSyncer struct {
 
 // NewBinlogSyncer creates the BinlogSyncer with cfg.
 func NewBinlogSyncer(cfg BinlogSyncerConfig) *BinlogSyncer {
+	if cfg.ServerID == 0 {
+		log.Fatal("can't use 0 as the server ID")
+	}
+
 	// Clear the Password to avoid outputing it in log.
 	pass := cfg.Password
 	cfg.Password = ""
@@ -334,7 +338,7 @@ func (b *BinlogSyncer) StartSync(pos Position) (*BinlogStreamer, error) {
 
 // StartSyncGTID starts syncing from the `gset` GTIDSet.
 func (b *BinlogSyncer) StartSyncGTID(gset GTIDSet) (*BinlogStreamer, error) {
-	log.Infof("begin to sync binlog from GTID %s", gset)
+	log.Infof("begin to sync binlog from GTID set %s", gset)
 
 	b.gset = gset
 

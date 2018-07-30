@@ -1,20 +1,24 @@
 package canal
 
 import (
+	"encoding/hex"
+	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/siddontang/go-log/log"
 	"github.com/siddontang/go-mysql/dump"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/schema"
-	"gopkg.in/birkirb/loggers.v1/log"
 )
 
 type dumpParseHandler struct {
 	c    *Canal
 	name string
 	pos  uint64
+	gset mysql.GTIDSet
 }
 
 func (h *dumpParseHandler) BinLog(name string, pos uint64) error {
@@ -60,6 +64,13 @@ func (h *dumpParseHandler) Data(db string, table string, values []string) error 
 					return dump.ErrSkip
 				}
 				vs[i] = f
+			} else if strings.HasPrefix(v, "0x") {
+				buf, err := hex.DecodeString(v[2:])
+				if err != nil {
+					log.Errorf("parse row %v at %d error %v, skip", values, i, err)
+					return dump.ErrSkip
+				}
+				vs[i] = string(buf)
 			} else {
 				log.Errorf("parse row %v error, invalid type at %d, skip", values, i)
 				return dump.ErrSkip
@@ -99,10 +110,21 @@ func (c *Canal) AddDumpIgnoreTables(db string, tables ...string) {
 
 func (c *Canal) dump() error {
 	if c.dumper == nil {
-		return errors.New("mysqldump is not exist")
+		return errors.New("mysqldump does not exist")
 	}
 
 	h := &dumpParseHandler{c: c}
+	// If users call StartFromGTID with empty position to start dumping with gtid,
+	// we record the current gtid position before dump starts.
+	//
+	// See tryDump() to see when dump is skipped.
+	if c.master.GTIDSet() != nil {
+		gset, err := c.GetMasterGTIDSet()
+		if err != nil {
+			return errors.Trace(err)
+		}
+		h.gset = gset
+	}
 
 	if c.cfg.Dump.SkipMasterData {
 		pos, err := c.GetMasterPos()
@@ -120,22 +142,26 @@ func (c *Canal) dump() error {
 		return errors.Trace(err)
 	}
 
-	log.Infof("dump MySQL and parse OK, use %0.2f seconds, start binlog replication at (%s, %d)",
-		time.Now().Sub(start).Seconds(), h.name, h.pos)
-
 	pos := mysql.Position{h.name, uint32(h.pos)}
 	c.master.Update(pos)
 	c.eventHandler.OnPosSynced(pos, true)
+	var startPos fmt.Stringer = pos
+	if h.gset != nil {
+		c.master.UpdateGTIDSet(h.gset)
+		startPos = h.gset
+	}
+	log.Infof("dump MySQL and parse OK, use %0.2f seconds, start binlog replication at %s",
+		time.Now().Sub(start).Seconds(), startPos)
 	return nil
 }
 
 func (c *Canal) tryDump() error {
 	pos := c.master.Position()
-	gtid := c.master.GTID()
+	gset := c.master.GTIDSet()
 	if (len(pos.Name) > 0 && pos.Pos > 0) ||
-		(gtid != nil && gtid.String() != "") {
+		(gset != nil && gset.String() != "") {
 		// we will sync with binlog name and position
-		log.Infof("skip dump, use last binlog replication pos %s or GTID %s", pos, gtid)
+		log.Infof("skip dump, use last binlog replication pos %s or GTID set %s", pos, gset)
 		return nil
 	}
 

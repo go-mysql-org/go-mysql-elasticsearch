@@ -11,7 +11,7 @@
   branch = "master"
   name = "github.com/juju/errors"
   packages = ["."]
-  revision = "c7d06af17c68cd34c835053720b21f6549d9b0ee"
+  revision = "812b06ada1776ad4dd95d575e18ffffe3a9ac34a"
 
 [[projects]]
   branch = "master"
@@ -28,8 +28,8 @@
 [[projects]]
   name = "github.com/shopspring/decimal"
   packages = ["."]
-  revision = "69b3a8ad1f5f2c8bd855cb6506d18593064a346b"
-  version = "1.0.1"
+  revision = "cd690d0c9e2447b1ef2a129a6b7b49077da89b8e"
+  version = "1.1.0"
 
 [[projects]]
   branch = "master"
@@ -43,6 +43,15 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/siddontang/go-log"
+  packages = [
+    "log",
+    "loggers"
+  ]
+  revision = "a4d157e46fa3e08b7e7ff329af341fa3ff86c02c"
+
+[[projects]]
+  branch = "master"
   name = "github.com/siddontang/go-mysql"
   packages = [
     "canal",
@@ -53,23 +62,11 @@
     "replication",
     "schema"
   ]
-  revision = "fb8f61a50302b65f98d88cf0c5d02a4631fa6ec6"
-
-[[projects]]
-  branch = "master"
-  name = "gopkg.in/birkirb/loggers.v1"
-  packages = [
-    ".",
-    "log",
-    "mappers",
-    "mappers/stdlib"
-  ]
-  revision = "fa51471f8169216876525e7b6c9fbd0c8789b57a"
-  source = "https://github.com/siddontang/loggers.git"
+  revision = "2d151e326c1a7193d6c374dba6fbb0db3435bf05"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f6ac894c2b53acb3d996d3324956a2f487ee253525e40aa05164c9e013f75e49"
+  inputs-digest = "a44edb92429a19dab5e22a895bbcd4f8d98e67fb9e5f0d6c6899afe1a6517b59"
   solver-name = "gps-cdcl"
   solver-version = 1
