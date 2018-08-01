@@ -20,6 +20,8 @@ It uses `mysqldump` to fetch the origin data at first, then syncs data increment
 
 ## Notice
 
++ MySQL supported version < 8.0
++ ES supported version < 6.0
 + binlog format must be **row**.
 + binlog row image must be **full** for MySQL, you may lost some field data if you update PK data in MySQL with minimal or noblob binlog row image. MariaDB only supports full row image.
 + Can not alter table format at runtime.
@@ -200,6 +202,8 @@ Although there are some other MySQL rivers for Elasticsearch, like [elasticsearc
 
 ## Todo
 
++ MySQL 8
++ ES 6
 + Statistic.
 
 ## Donate
