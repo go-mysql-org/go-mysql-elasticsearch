@@ -4,7 +4,7 @@ It uses `mysqldump` to fetch the origin data at first, then syncs data increment
 
 ## Install
 
-+ Install Go (1.6+) and set your [GOPATH](https://golang.org/doc/code.html#GOPATH)
++ Install Go (1.9+) and set your [GOPATH](https://golang.org/doc/code.html#GOPATH)
 + `go get github.com/siddontang/go-mysql-elasticsearch`, it will print some messages in console, skip it. :-)
 + cd `$GOPATH/src/github.com/siddontang/go-mysql-elasticsearch`
 + `make`
