@@ -15,6 +15,8 @@ import (
 
 var myAddr = flag.String("my_addr", "127.0.0.1:3306", "MySQL addr")
 var esAddr = flag.String("es_addr", "127.0.0.1:9200", "Elasticsearch addr")
+var dateTimeStr = time.Now().Format(mysql.TimeFormat)
+var dateStr = time.Now().Format(mysqlDateFormat)
 
 func Test(t *testing.T) {
 	TestingT(t)
