@@ -38,18 +38,18 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	schema := `
         CREATE TABLE IF NOT EXISTS %s (
-					id INT,
-					title VARCHAR(256),
-					content VARCHAR(256),
-					mylist VARCHAR(256),
-					mydate INT(10),
-					tenum ENUM("e1", "e2", "e3"),
-					tset SET("a", "b", "c"),
-					tbit BIT(1) default 1,
+			id INT,
+			title VARCHAR(256),
+			content VARCHAR(256),
+			mylist VARCHAR(256),
+			mydate INT(10),
+			tenum ENUM("e1", "e2", "e3"),
+			tset SET("a", "b", "c"),
+			tbit BIT(1) default 1,
 					tdatetime DATETIME DEFAULT NULL,
-					tdate DATE DEFAULT NULL,
 					ip INT UNSIGNED DEFAULT 0,
-					PRIMARY KEY(id)) ENGINE=INNODB;
+					tdate DATE DEFAULT NULL,
+			PRIMARY KEY(id)) ENGINE=INNODB;
     `
 
 	schemaJSON := `
