@@ -36,17 +36,18 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 
 	schema := `
         CREATE TABLE IF NOT EXISTS %s (
-            id INT,
-            title VARCHAR(256),
-            content VARCHAR(256),
-            mylist VARCHAR(256),
-            mydate INT(10),
-            tenum ENUM("e1", "e2", "e3"),
-            tset SET("a", "b", "c"),
-            tbit BIT(1) default 1,
-			tdatetime DATETIME DEFAULT NULL,
-			ip INT UNSIGNED DEFAULT 0,
-            PRIMARY KEY(id)) ENGINE=INNODB;
+					id INT,
+					title VARCHAR(256),
+					content VARCHAR(256),
+					mylist VARCHAR(256),
+					mydate INT(10),
+					tenum ENUM("e1", "e2", "e3"),
+					tset SET("a", "b", "c"),
+					tbit BIT(1) default 1,
+					tdatetime DATETIME DEFAULT NULL,
+					tdate DATE DEFAULT NULL,
+					ip INT UNSIGNED DEFAULT 0,
+					PRIMARY KEY(id)) ENGINE=INNODB;
     `
 
 	schemaJSON := `
@@ -223,8 +224,10 @@ func (s *riverTestSuite) testPrepareData(c *C) {
 		s.testExecute(c, fmt.Sprintf("INSERT INTO %s (id, title, content, tenum, tset) VALUES (?, ?, ?, ?, ?)", table), 5+i, "abc", "hello", "e1", "a,b,c")
 	}
 
-	datetime := time.Now().Format(mysql.TimeFormat)
-	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tdatetime, mydate) VALUES (?, ?, ?, ?, ?, ?, ?)", 16, "test datetime", "hello go 16", "e1", "a,b", datetime, 1458131094)
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tdatetime, mydate, tdate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 16, "test datetime", "hello go 16", "e1", "a,b", dateTimeStr, 1458131094, dateStr)
+
+	s.testExecute(c, "SET sql_mode = '';") // clear sql_mode to allow empty dates
+	s.testExecute(c, "INSERT INTO test_river (id, title, content, tenum, tset, tdatetime, mydate, tdate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 20, "test empty datetime", "date test 20", "e1", "a,b", "0000-00-00 00:00:00", 0, "0000-00-00")
 
 	// test ip
 	s.testExecute(c, "INSERT test_river (id, ip) VALUES (?, ?)", 17, 0)
@@ -248,6 +251,7 @@ func (s *riverTestSuite) testElasticMapping(c *C) *elastic.MappingResponse {
 	c.Assert(err, IsNil)
 
 	c.Assert(r.Mapping[index].Mappings[docType].Properties["tdatetime"].Type, Equals, "date")
+	c.Assert(r.Mapping[index].Mappings[docType].Properties["tdate"].Type, Equals, "date")
 	c.Assert(r.Mapping[index].Mappings[docType].Properties["mydate"].Type, Equals, "date")
 	return r
 }
@@ -358,6 +362,17 @@ func (s *riverTestSuite) TestRiver(c *C) {
 		c.Assert(r.Found, IsTrue)
 		c.Assert(r.Source["es_title"], Equals, "hello")
 	}
+
+	r = s.testElasticGet(c, "16")
+	c.Assert(r.Found, IsTrue)
+	tdt, _ := time.Parse(time.RFC3339, r.Source["tdatetime"].(string))
+	c.Assert(tdt.Format(mysql.TimeFormat), Equals, dateTimeStr)
+	c.Assert(r.Source["tdate"], Equals, dateStr)
+
+	r = s.testElasticGet(c, "20")
+	c.Assert(r.Found, IsTrue)
+	c.Assert(r.Source["tdate"], Equals, nil)
+	c.Assert(r.Source["tdatetime"], Equals, nil)
 
 	// test ip
 	r = s.testElasticGet(c, "17")

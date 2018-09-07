@@ -30,6 +30,8 @@ const (
 	fieldTypeDate = "date"
 )
 
+const mysqlDateFormat = "2006-01-02"
+
 type posSaver struct {
 	pos   mysql.Position
 	force bool
@@ -342,12 +344,11 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 	case schema.TYPE_DATE:
 		switch v := value.(type) {
 		case string:
-			dateFormat := "2006-01-02"
-			vt, err := time.Parse(dateFormat, string(v))
+			vt, err := time.Parse(mysqlDateFormat, string(v))
 			if err != nil || vt.IsZero() { // failed to parse date or zero date
 				return nil
 			}
-			return vt.Format(dateFormat)
+			return vt.Format(mysqlDateFormat)
 		}
 	}
 
