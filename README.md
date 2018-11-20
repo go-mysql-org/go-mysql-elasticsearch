@@ -203,7 +203,7 @@ Although there are some other MySQL rivers for Elasticsearch, like [elasticsearc
 ## Todo
 
 + MySQL 8
-+ ES 6
++ ES 6 (After verification (version 6.4.2), it is now supported. Delete and update are supported)
 + Statistic.
 
 ## Donate
