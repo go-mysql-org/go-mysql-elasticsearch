@@ -105,6 +105,8 @@ id="es_id"
 tags="es_tags,list"
 # Map column `keywords` to ES with array type
 keywords=",list"
+# Map column (mysql type varchar(255) "2018-11-20 10:10:10") `time`  to ES with date type
+time="time,date"
 
 # Filter rule 
 #
