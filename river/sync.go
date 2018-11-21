@@ -520,7 +520,7 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 		        v := r.makeReqColumnData(col, value)
                         str, _ := v.(string)
 			  
-		        //stamp, _ := time.ParseInLocation("2006-01-02 03:04:05", str, time.Local) 
+		        stamp, _ := time.ParseInLocation("2006-01-02 03:04:05", str, time.Local) 
 			// time.RFC3339 time style is 2018-10-30T01:45:00Z
 			stamp, _ := time.ParseInLocation("2006-01-02T15:04:05Z", str, time.Local) 
 		        t := int64(stamp.Unix())
