@@ -1,26 +1,115 @@
+# MySQL address, user and password
+# user must have replication privilege in MySQL.
 my_addr = "mysqlhost:3306"
 my_user = "root"
 my_pass = "root"
 my_charset = "utf8"
+
+# Set true when elasticsearch use https
+#es_https = false
+# Elasticsearch address
 es_addr = "eshost:9200"
+# Elasticsearch user and password, maybe set by shield, nginx, or x-pack
+#es_user = ""
+#es_pass = ""
+
+# Path to store data, like master.info, if not set or empty,
+# we must use this to support breakpoint resume syncing. 
+# TODO: support other storage, like etcd. 
 data_dir = "./var"
+
+# Inner Http status address
 stat_addr = "127.0.0.1:12800"
-server_id = 1234
-flavor = "mysql"
+
+# pseudo server id like a slave 
+server_id = 1001
+
+# mysql or mariadb
+flavor = "mariadb"
+
+# mysqldump execution path
+# if not set or empty, ignore mysqldump.
 mysqldump = "mysqldump"
+
+# if we have no privilege to use mysqldump with --master-data,
+# we must skip it.
+#skip_master_data = false
+
+# minimal items to be inserted in one bulk
 bulk_size = 128
+
+# force flush the pending requests if we don't have enough items >= bulk_size
 flush_bulk_time = "200ms"
+
+# Ignore table without primary key
 skip_no_pk_table = false
+
+# MySQL data source
 [[source]]
-schema = "RUNOOB"
-tables = ["runoob_tbl"]
+schema = "nfvofcaps"
+
+# Only below tables will be synced into Elasticsearch.
+# "t_[0-9]{4}" is a wildcard table format, you can use it if you have many sub tables, like table_0000 - table_1023
+# I don't think it is necessary to sync all tables in a database.
+#tables = ["t", "t_[0-9]{4}", "tfield", "tfilter"]
+tables = ["FMALARM"]
+# Below is for special rule mapping
+
+# Very simple example
+# 
+# desc t;
+# +-------+--------------+------+-----+---------+-------+
+# | Field | Type         | Null | Key | Default | Extra |
+# +-------+--------------+------+-----+---------+-------+
+# | id    | int(11)      | NO   | PRI | NULL    |       |
+# | name  | varchar(256) | YES  |     | NULL    |       |
+# +-------+--------------+------+-----+---------+-------+
+# 
+# The table `t` will be synced to ES index `test` and type `t`.
 [[rule]]
-schema = "RUNOOB"
-table = "runoob_tbl"
-index = "gomysql110"
-type = "go"
-id = ["runoob_id"]
+schema = "nfvofcaps"
+table = "FMALARM"
+index = "nfvomysql"
+type = "mysqltable"
+
+# The es doc's id will be `id`:`tag`
+# It is useful for merge muliple table into one type while theses tables have same PK 
+id = ["ID","ALARMID"]
 
 
 [rule.field]
-runoob_title="runoob_title,date"
+# Map column `id` to ES field `es_id`
+#id="es_id"
+# Map column `tags` to ES field `es_tags` with array type 
+#tags="es_tags,list"
+# Map column `keywords` to ES with array type
+#keywords=",list"
+
+
+ORIGIN="origin"
+ID="id"
+ALARMID="alarmid"
+ALARMTITLE="alarmtitle"
+ALARMSTATUS="alarmstatus"
+ORIGSEVERITY="origseverity"
+ALARMTYPE="alarmtype"
+EVENTTIME="eventtime,date"
+MSGSEQ="msgseq"
+CLEARTIME="cleartime,date"
+CLEARFLAG="clearflag"
+CLEARMSGSEQ="clearmsgseq"
+SPECIFICPROBLEMID="specificproblemid"
+SPECIFICPROBLEM="specificproblem"
+NEUID="neuid"
+NENAME="nename"
+NETYPE="netype"
+OBJECTUID="objectuid"
+OBJECTNAME="objectname"
+OBJECTTYPE="objecttype"
+LOCATIONINFO="locationinfo"
+ADDINFO="addinfo"
+PVFLAG="pvflag"
+CONFIRMFLAG="confirmflag"
+CONFIRMTIME="confirmtime,date"
+REMARK="remark"
+REMARKTIME="remarktime,date"
