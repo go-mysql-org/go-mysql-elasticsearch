@@ -107,6 +107,10 @@ type = "t"
 
     // If the created_time field type is "int", and you want to convert it to "date" type in es, you can do it as below
     created_time=",date"
+
+    // This will map mysql lat, lon two field to es location field which is geo_point type.
+    lat = "location,geo_point.lat"
+    lon = "location,geo_point.lon"
 ```
 
 Modifier "list" will translates a mysql string field like "a,b,c" on an elastic array type '{"a", "b", "c"}' this is specially useful if you need to use those fields on filtering on elasticsearch.

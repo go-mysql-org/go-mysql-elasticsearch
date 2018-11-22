@@ -28,6 +28,14 @@ const (
 	// for the mysql int type to es date type
 	// set the [rule.field] created_time = ",date"
 	fieldTypeDate = "date"
+	// for the mysql lat, lon two field to es geo_point type
+	/*
+		 set the [rule.field]
+			 lat = "location,geo_point.lat"
+			 lon = "location,geo_point.lon"
+	*/
+	fieldTypeGeopointLat = "geo_point.lat"
+	fieldTypeGeopointLon = "geo_point.lon"
 )
 
 const mysqlDateFormat = "2006-01-02"
@@ -385,7 +393,27 @@ func (r *River) makeInsertReqData(req *elastic.BulkRequest, rule *Rule, values [
 			mysql, elastic, fieldType := r.getFieldParts(k, v)
 			if mysql == c.Name {
 				mapped = true
-				req.Data[elastic] = r.getFieldValue(&c, fieldType, values[i])
+				if fieldType == fieldTypeGeopointLat {
+					if req.Data[elastic] == nil {
+						req.Data[elastic] = make(map[string]float64)
+					}
+					d := r.makeReqColumnData(&c, values[i])
+					if d == nil {
+						d = 0.0
+					}
+					req.Data[elastic].(map[string]float64)["lat"] = d.(float64)
+				} else if fieldType == fieldTypeGeopointLon {
+					if req.Data[elastic] == nil {
+						req.Data[elastic] = make(map[string]float64)
+					}
+					d := r.makeReqColumnData(&c, values[i])
+					if d == nil {
+						d = 0.0
+					}
+					req.Data[elastic].(map[string]float64)["lon"] = d.(float64)
+				} else {
+					req.Data[elastic] = r.getFieldValue(&c, fieldType, values[i])
+				}
 			}
 		}
 		if mapped == false {
@@ -515,6 +543,8 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 				fieldValue = r.makeReqColumnData(col, time.Unix(v.Int(), 0).Format(mysql.TimeFormat))
 			}
 		}
+	case fieldTypeGeopointLat, fieldTypeGeopointLon:
+		fieldValue = r.makeReqColumnData(col, value)
 	}
 
 	if fieldValue == nil {
