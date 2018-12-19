@@ -442,7 +442,27 @@ func (r *River) makeUpdateReqData(req *elastic.BulkRequest, rule *Rule,
 			mysql, elastic, fieldType := r.getFieldParts(k, v)
 			if mysql == c.Name {
 				mapped = true
-				req.Data[elastic] = r.getFieldValue(&c, fieldType, afterValues[i])
+				if fieldType == fieldTypeGeopointLat {
+					if req.Data[elastic] == nil {
+						req.Data[elastic] = make(map[string]float64)
+					}
+					d := r.makeReqColumnData(&c, afterValues[i])
+					if d == nil {
+						d = 0.0
+					}
+					req.Data[elastic].(map[string]float64)["lat"] = d.(float64)
+				} else if fieldType == fieldTypeGeopointLon {
+					if req.Data[elastic] == nil {
+						req.Data[elastic] = make(map[string]float64)
+					}
+					d := r.makeReqColumnData(&c, afterValues[i])
+					if d == nil {
+						d = 0.0
+					}
+					req.Data[elastic].(map[string]float64)["lon"] = d.(float64)
+				} else {
+					req.Data[elastic] = r.getFieldValue(&c, fieldType, afterValues[i])
+				}
 			}
 		}
 		if mapped == false {
