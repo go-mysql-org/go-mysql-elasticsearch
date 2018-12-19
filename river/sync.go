@@ -36,6 +36,8 @@ const (
 	*/
 	fieldTypeGeopointLat = "geo_point.lat"
 	fieldTypeGeopointLon = "geo_point.lon"
+
+	fieldTypeBoolean = "bool"
 )
 
 const mysqlDateFormat = "2006-01-02"
@@ -563,8 +565,9 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 				fieldValue = r.makeReqColumnData(col, time.Unix(v.Int(), 0).Format(mysql.TimeFormat))
 			}
 		}
-	case fieldTypeGeopointLat, fieldTypeGeopointLon:
-		fieldValue = r.makeReqColumnData(col, value)
+	case fieldTypeBoolean:
+		v := value.(int8)
+		fieldValue = r.makeReqColumnData(col, v == 1)
 	}
 
 	if fieldValue == nil {
