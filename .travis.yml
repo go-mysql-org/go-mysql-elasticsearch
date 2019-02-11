@@ -1,8 +1,7 @@
 language: go
 
 go:
-  - "1.9"
-  - "1.10"
+  - "1.11"
   
 services:
   - elasticsearch
@@ -35,3 +34,5 @@ before_install:
 script:
   - go test --race ./...
 
+env:
+  - GO111MODULE=on
