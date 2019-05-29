@@ -513,7 +513,6 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 			v := reflect.ValueOf(value)
 			switch v.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				// es accepts millisecond timestamp for date, so ignore it
 				if v.Int() > math.MaxInt32 {
 					fieldValue = r.makeReqColumnData(col, time.Unix(0, v.Int()).Format(mysql.TimeFormat))
 				} else {
