@@ -105,7 +105,7 @@ type = "t"
     // This will map column title to elastic search title and use array type
     title=",list"
 
-    // If the created_time field type is "int", and you want to convert it to "date" type in es, you can do it as below
+    // If the created_time field type is "int/bigint" which holds `timestamp`/`millisecond timestamp`, and you want to convert it to "date" type in es, you can do it as below
     created_time=",date"
 ```
 

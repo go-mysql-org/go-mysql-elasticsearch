@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"time"
@@ -103,7 +104,7 @@ func (h *eventHandler) OnGTID(gtid mysql.GTIDSet) error {
 	return nil
 }
 
-func (h *eventHandler) OnPosSynced(pos mysql.Position, force bool) error {
+func (h *eventHandler) OnPosSynced(pos mysql.Position, set mysql.GTIDSet, force bool) error {
 	return nil
 }
 
@@ -512,7 +513,11 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 			v := reflect.ValueOf(value)
 			switch v.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				fieldValue = r.makeReqColumnData(col, time.Unix(v.Int(), 0).Format(mysql.TimeFormat))
+				if v.Int() > math.MaxInt32 {
+					fieldValue = r.makeReqColumnData(col, time.Unix(0, int64(time.Millisecond)*v.Int()).Format(mysql.TimeFormat))
+				} else {
+					fieldValue = r.makeReqColumnData(col, time.Unix(v.Int(), 0).Format(mysql.TimeFormat))
+				}
 			}
 		}
 	}
