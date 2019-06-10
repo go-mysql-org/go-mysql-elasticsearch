@@ -46,6 +46,8 @@ func (s *riverTestSuite) setupExtra(c *C) (r *River) {
 	cfg.DumpExec = "mysqldump"
 
 	cfg.StatAddr = "127.0.0.1:12800"
+	cfg.StatPath = "/metrics2"
+
 	cfg.BulkSize = 1
 	cfg.FlushBulkTime = TomlDuration{3 * time.Millisecond}
 

@@ -48,7 +48,7 @@ func (r *River) collectMetrics() {
 	}
 }
 
-func InitStatus(addr string) {
-	http.Handle("/metrics", promhttp.Handler())
+func InitStatus(addr string, path string) {
+	http.Handle(path, promhttp.Handler())
 	http.ListenAndServe(addr, nil)
 }
