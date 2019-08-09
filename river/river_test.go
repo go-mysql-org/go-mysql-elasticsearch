@@ -15,7 +15,7 @@ import (
 
 var myAddr = flag.String("my_addr", "127.0.0.1:3306", "MySQL addr")
 var esAddr = flag.String("es_addr", "127.0.0.1:9200", "Elasticsearch addr")
-var dateTimeStr = time.Now().Format(mysql.TimeFormat)
+var dateTimeStr = time.Now().In(time.UTC).Format(mysql.TimeFormat)
 var dateStr = time.Now().Format(mysqlDateFormat)
 
 func Test(t *testing.T) {
@@ -77,6 +77,7 @@ func (s *riverTestSuite) SetUpSuite(c *C) {
 	cfg.MyUser = "root"
 	cfg.MyPassword = ""
 	cfg.MyCharset = "utf8"
+	cfg.MyTimezone = TomeLocation{time.UTC}
 	cfg.ESAddr = *esAddr
 
 	cfg.ServerID = 1001
@@ -205,6 +206,18 @@ type = "river"
 	c.Assert(cfg.Sources, HasLen, 1)
 	c.Assert(cfg.Sources[0].Tables, HasLen, 4)
 	c.Assert(cfg.Rules, HasLen, 4)
+	c.Assert(cfg.MyTimezone.Location, Equals, time.Local)
+
+	str = `
+my_addr = "127.0.0.1:3306"
+my_user = "root"
+my_pass = ""
+my_charset = "utf8"
+my_timezone = "Asia/Shanghai"
+`
+	cfg, err = NewConfig(str)
+	c.Assert(err, IsNil)
+	c.Assert(cfg.MyTimezone.Location.String(), Equals, "Asia/Shanghai")
 }
 
 func (s *riverTestSuite) testExecute(c *C, query string, args ...interface{}) {
@@ -369,6 +382,9 @@ func (s *riverTestSuite) TestRiver(c *C) {
 	c.Assert(r.Found, IsTrue)
 	tdt, _ := time.Parse(time.RFC3339, r.Source["tdatetime"].(string))
 	c.Assert(tdt.Format(mysql.TimeFormat), Equals, dateTimeStr)
+	tdtZoneName, tdtZoneOffset := tdt.Zone()
+	c.Assert(tdtZoneName, Equals, "UTC")
+	c.Assert(tdtZoneOffset, Equals, 0)
 	c.Assert(r.Source["tdate"], Equals, dateStr)
 
 	r = s.testElasticGet(c, "20")
