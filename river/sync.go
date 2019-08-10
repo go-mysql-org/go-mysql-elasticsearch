@@ -335,7 +335,7 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 	case schema.TYPE_DATETIME, schema.TYPE_TIMESTAMP:
 		switch v := value.(type) {
 		case string:
-			vt, err := time.ParseInLocation(mysql.TimeFormat, string(v), time.Local)
+			vt, err := time.ParseInLocation(mysql.TimeFormat, string(v), r.c.MyTimezone.Location)
 			if err != nil || vt.IsZero() { // failed to parse date or zero date
 				return nil
 			}

@@ -37,6 +37,7 @@ func (s *riverTestSuite) setupExtra(c *C) (r *River) {
 	cfg.MyAddr = *myAddr
 	cfg.MyUser = "root"
 	cfg.MyPassword = ""
+	cfg.MyTimezone = TomeLocation{time.Local}
 	cfg.ESAddr = *esAddr
 
 	cfg.ServerID = 1001

@@ -16,10 +16,11 @@ type SourceConfig struct {
 
 // Config is the configuration
 type Config struct {
-	MyAddr     string `toml:"my_addr"`
-	MyUser     string `toml:"my_user"`
-	MyPassword string `toml:"my_pass"`
-	MyCharset  string `toml:"my_charset"`
+	MyAddr     string       `toml:"my_addr"`
+	MyUser     string       `toml:"my_user"`
+	MyPassword string       `toml:"my_pass"`
+	MyCharset  string       `toml:"my_charset"`
+	MyTimezone TomeLocation `toml:"my_timezone"`
 
 	ESHttps    bool   `toml:"es_https"`
 	ESAddr     string `toml:"es_addr"`
@@ -59,6 +60,7 @@ func NewConfigWithFile(name string) (*Config, error) {
 // NewConfig creates a Config from data.
 func NewConfig(data string) (*Config, error) {
 	var c Config
+	c.MyTimezone = TomeLocation{time.Local}
 
 	_, err := toml.Decode(data, &c)
 	if err != nil {
@@ -77,5 +79,17 @@ type TomlDuration struct {
 func (d *TomlDuration) UnmarshalText(text []byte) error {
 	var err error
 	d.Duration, err = time.ParseDuration(string(text))
+	return err
+}
+
+// TomeLocation supports time.Location codec for TOML format.
+type TomeLocation struct {
+	*time.Location
+}
+
+// UnmarshalText implementes TOML UnmarshalText
+func (l *TomeLocation) UnmarshalText(text []byte) error {
+	var err error
+	l.Location, err = time.LoadLocation(string(text))
 	return err
 }

@@ -1,18 +1,13 @@
+dist: xenial
+
 language: go
 
 go:
   - "1.11"
-  
+
 services:
   - elasticsearch
-
-addons:
-  apt:
-    sources:
-      - mysql-5.7-trusty
-    packages:
-      - mysql-server
-      - mysql-client
+  - mysql
 
 before_install:
   - sudo mysql -e "use mysql; update user set authentication_string=PASSWORD('') where User='root'; update user set plugin='mysql_native_password';FLUSH PRIVILEGES;"
