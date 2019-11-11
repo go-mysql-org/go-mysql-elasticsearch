@@ -33,8 +33,6 @@ type River struct {
 
 	es *elastic.Client
 
-	st *stat
-
 	master *masterInfo
 
 	syncCh chan interface{}
@@ -78,8 +76,7 @@ func NewRiver(c *Config) (*River, error) {
 	cfg.HTTPS = r.c.ESHttps
 	r.es = elastic.NewClient(cfg)
 
-	r.st = &stat{r: r}
-	go r.st.Run(r.c.StatAddr)
+	go InitStatus(r.c.StatAddr, r.c.StatPath)
 
 	return r, nil
 }
@@ -292,11 +289,13 @@ func ruleKey(schema string, table string) string {
 // Run syncs the data from MySQL and inserts to ES.
 func (r *River) Run() error {
 	r.wg.Add(1)
+	canalSyncState.Set(float64(1))
 	go r.syncLoop()
 
 	pos := r.master.Position()
 	if err := r.canal.RunFrom(pos); err != nil {
 		log.Errorf("start canal err %v", err)
+		canalSyncState.Set(0)
 		return errors.Trace(err)
 	}
 

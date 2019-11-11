@@ -27,6 +27,7 @@ type Config struct {
 	ESPassword string `toml:"es_pass"`
 
 	StatAddr string `toml:"stat_addr"`
+	StatPath string `toml:"stat_path"`
 
 	ServerID uint32 `toml:"server_id"`
 	Flavor   string `toml:"flavor"`

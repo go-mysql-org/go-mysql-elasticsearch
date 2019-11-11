@@ -18,12 +18,6 @@ import (
 )
 
 const (
-	syncInsertDoc = iota
-	syncDeleteDoc
-	syncUpdateDoc
-)
-
-const (
 	fieldTypeList = "list"
 	// for the mysql int type to es date type
 	// set the [rule.field] created_time = ",date"
@@ -103,7 +97,7 @@ func (h *eventHandler) OnGTID(gtid mysql.GTIDSet) error {
 	return nil
 }
 
-func (h *eventHandler) OnPosSynced(pos mysql.Position, force bool) error {
+func (h *eventHandler) OnPosSynced(pos mysql.Position, set mysql.GTIDSet, force bool) error {
 	return nil
 }
 
@@ -197,10 +191,10 @@ func (r *River) makeRequest(rule *Rule, action string, rows [][]interface{}) ([]
 
 		if action == canal.DeleteAction {
 			req.Action = elastic.ActionDelete
-			r.st.DeleteNum.Add(1)
+			esDeleteNum.WithLabelValues(rule.Index).Inc()
 		} else {
 			r.makeInsertReqData(req, rule, values)
-			r.st.InsertNum.Add(1)
+			esInsertNum.WithLabelValues(rule.Index).Inc()
 		}
 
 		reqs = append(reqs, req)
@@ -255,8 +249,8 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 			req = &elastic.BulkRequest{Index: rule.Index, Type: rule.Type, ID: afterID, Parent: afterParentID, Pipeline: rule.Pipeline}
 			r.makeInsertReqData(req, rule, rows[i+1])
 
-			r.st.DeleteNum.Add(1)
-			r.st.InsertNum.Add(1)
+			esDeleteNum.WithLabelValues(rule.Index).Inc()
+			esInsertNum.WithLabelValues(rule.Index).Inc()
 		} else {
 			if len(rule.Pipeline) > 0 {
 				// Pipelines can only be specified on index action
@@ -267,7 +261,7 @@ func (r *River) makeUpdateRequest(rule *Rule, rows [][]interface{}) ([]*elastic.
 			} else {
 				r.makeUpdateReqData(req, rule, rows[i], rows[i+1])
 			}
-			r.st.UpdateNum.Add(1)
+			esUpdateNum.WithLabelValues(rule.Index).Inc()
 		}
 
 		reqs = append(reqs, req)

@@ -20,6 +20,7 @@ data_dir = "./var"
 
 # Inner Http status address
 stat_addr = "127.0.0.1:12800"
+stat_path = "/metrics"
 
 # pseudo server id like a slave 
 server_id = 1001
