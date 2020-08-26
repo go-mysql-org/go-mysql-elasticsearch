@@ -508,7 +508,15 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				fieldValue = r.makeReqColumnData(col, time.Unix(v.Int(), 0).Format(mysql.TimeFormat))
 			}
-		}
+		} else if col.Type == schema.TYPE_STRING {
+                        v := r.makeReqColumnData(col, value)
+                        str, _ := v.(string)
+                        stamp, _ := time.ParseInLocation(time.RFC3339 , str, time.Local) 
+                        t := int64(stamp.Unix())
+                        col.Type = schema.TYPE_DATETIME
+                        fieldValue = r.makeReqColumnData(col, time.Unix(t, 0).Format(mysql.TimeFormat))
+                 
+                }
 	}
 
 	if fieldValue == nil {
