@@ -327,9 +327,10 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 			return f
 		}
 	case schema.TYPE_DATETIME, schema.TYPE_TIMESTAMP:
-		log.Info(value.(type), mysql.TimeFormat)
+		log.Info(mysql.TimeFormat)
 		switch v := value.(type) {
 		case string:
+			log.Info(v)
 			vt, err := time.ParseInLocation(mysql.TimeFormat, string(v), time.Local)
 			if err != nil || vt.IsZero() { // failed to parse date or zero date
 				return nil
