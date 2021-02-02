@@ -490,6 +490,7 @@ func (r *River) doBulk(reqs []*elastic.BulkRequest) error {
 // get mysql field value and convert it to specific value to es
 func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value interface{}) interface{} {
 	var fieldValue interface{}
+	log.Info(fieldType)
 	switch fieldType {
 	case fieldTypeList:
 		v := r.makeReqColumnData(col, value)
@@ -514,5 +515,6 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 	if fieldValue == nil {
 		fieldValue = r.makeReqColumnData(col, value)
 	}
+	log.Info(fieldValue)
 	return fieldValue
 }
