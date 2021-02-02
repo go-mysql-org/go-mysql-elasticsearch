@@ -505,12 +505,14 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 			col.Type = schema.TYPE_DATETIME
 
 			v := reflect.ValueOf(value)
+			log.Info(v, v.Kind, mysql.TimeFormat)
 			switch v.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				fieldValue = r.makeReqColumnData(col, time.Unix(v.Int(), 0).Format(mysql.TimeFormat))
 			}
 		}
 	}
+	log.Info(fieldValue)
 
 	if fieldValue == nil {
 		fieldValue = r.makeReqColumnData(col, value)
