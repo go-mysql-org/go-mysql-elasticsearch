@@ -327,6 +327,7 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 			return f
 		}
 	case schema.TYPE_DATETIME, schema.TYPE_TIMESTAMP:
+		log.Info(value.(type), mysql.TimeFormat)
 		switch v := value.(type) {
 		case string:
 			vt, err := time.ParseInLocation(mysql.TimeFormat, string(v), time.Local)
@@ -490,7 +491,7 @@ func (r *River) doBulk(reqs []*elastic.BulkRequest) error {
 // get mysql field value and convert it to specific value to es
 func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value interface{}) interface{} {
 	var fieldValue interface{}
-	log.Info(fieldType)
+	log.Info(fieldType, col.Type)
 	switch fieldType {
 	case fieldTypeList:
 		v := r.makeReqColumnData(col, value)
@@ -501,18 +502,17 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 		}
 
 	case fieldTypeDate:
+		log.Info(col.Type)
 		if col.Type == schema.TYPE_NUMBER {
 			col.Type = schema.TYPE_DATETIME
 
 			v := reflect.ValueOf(value)
-			log.Info(v, v.Kind, mysql.TimeFormat)
 			switch v.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				fieldValue = r.makeReqColumnData(col, time.Unix(v.Int(), 0).Format(mysql.TimeFormat))
 			}
 		}
 	}
-	log.Info(fieldValue)
 
 	if fieldValue == nil {
 		fieldValue = r.makeReqColumnData(col, value)
