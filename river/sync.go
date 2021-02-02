@@ -22,7 +22,6 @@ const (
 	// for the mysql int type to es date type
 	// set the [rule.field] created_time = ",date"
 	fieldTypeDate = "date"
-	fieldString   = "string"
 )
 
 const mysqlDateFormat = "2006-01-02"
@@ -334,7 +333,7 @@ func (r *River) makeReqColumnData(col *schema.TableColumn, value interface{}) in
 			if err != nil || vt.IsZero() { // failed to parse date or zero date
 				return nil
 			}
-			return vt.Format(time.RFC3339)
+			return vt.Format(mysqlDateFormat)
 		}
 	case schema.TYPE_DATE:
 		switch v := value.(type) {
@@ -510,10 +509,6 @@ func (r *River) getFieldValue(col *schema.TableColumn, fieldType string, value i
 				fieldValue = r.makeReqColumnData(col, time.Unix(v.Int(), 0).Format(mysql.TimeFormat))
 			}
 		}
-
-	case fieldString:
-		col.Type = schema.TYPE_STRING
-		fieldValue = r.makeReqColumnData(col, value)
 	}
 
 	if fieldValue == nil {
