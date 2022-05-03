@@ -18,7 +18,7 @@ var ErrRuleNotExist = errors.New("rule is not exist")
 
 // River is a pluggable service within Elasticsearch pulling data then indexing it into Elasticsearch.
 // We use this definition here too, although it may not run within Elasticsearch.
-// Maybe later I can implement a acutal river in Elasticsearch, but I must learn java. :-)
+// Maybe later I can implement an actual river in Elasticsearch, but I must learn java. :-)
 type River struct {
 	c *Config
 
