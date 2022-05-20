@@ -1,5 +1,4 @@
 bin
-etc/
 .idea
 var
 go.sum
