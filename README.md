@@ -175,7 +175,7 @@ filter = ["id", "name"]
 In the above example, we will only sync MySQL table tfiler's columns `id` and `name` to Elasticsearch. 
 
 ## Filter mysql ddl commands
-You can use `shield_ddl` to continue mysql DDL command
+You can use `shield_ddl` to skip mysql DDL command
 
 ```
 [[rule]]
@@ -184,11 +184,11 @@ table = "c_21"
 index = ""
 type = ""
 # shield ddl mysql command
-# example continue one command : delete
-# example continue many command : delete,update
+# example skip one command : delete
+# example skip many command : delete,update
 shield_ddl = "delete"
 ```
-In the above example , we will continue mysql delete command
+In the above example , we will skip mysql delete command
 
 ## Ignore table without a primary key
 When you sync table without a primary key, you can see below error message.

@@ -92,8 +92,8 @@ func (r *Rule) CheckHasShieldCommands() bool {
 	return len(r.ShieldDDL) > 0
 }
 
-// CheckContinueShieldCommand check continue command
-func (r *Rule) CheckContinueShieldCommand(action string) bool {
+// CheckSkipShieldCommand check continue command
+func (r *Rule) CheckSkipShieldCommand(action string) bool {
 	if len(r.ShieldDDL) < 1 {
 		return false
 	}

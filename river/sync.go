@@ -71,7 +71,7 @@ func (h *eventHandler) OnRow(e *canal.RowsEvent) error {
 	}
 
 	// check continue command
-	if rule.CheckContinueShieldCommand(e.Action) {
+	if rule.CheckSkipShieldCommand(e.Action) {
 		log.Infof("rules have continue ddl command , command event is (%v) , rows (%v)", e.Action, e.Rows)
 		return nil
 	}
