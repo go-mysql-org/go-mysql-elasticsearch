@@ -14,15 +14,15 @@ es_user = ""
 es_pass = ""
 
 # Path to store data, like master.info, if not set or empty,
-# we must use this to support breakpoint resume syncing. 
-# TODO: support other storage, like etcd. 
+# we must use this to support breakpoint resume syncing.
+# TODO: support other storage, like etcd.
 data_dir = "./var"
 
 # Inner Http status address
 stat_addr = "127.0.0.1:12800"
 stat_path = "/metrics"
 
-# pseudo server id like a slave 
+# pseudo server id like a slave
 server_id = 1001
 
 # mysql or mariadb
@@ -57,7 +57,7 @@ tables = ["t", "t_[0-9]{4}", "tfield", "tfilter"]
 # Below is for special rule mapping
 
 # Very simple example
-# 
+#
 # desc t;
 # +-------+--------------+------+-----+---------+-------+
 # | Field | Type         | Null | Key | Default | Extra |
@@ -65,15 +65,16 @@ tables = ["t", "t_[0-9]{4}", "tfield", "tfilter"]
 # | id    | int(11)      | NO   | PRI | NULL    |       |
 # | name  | varchar(256) | YES  |     | NULL    |       |
 # +-------+--------------+------+-----+---------+-------+
-# 
+#
 # The table `t` will be synced to ES index `test` and type `t`.
 [[rule]]
 schema = "test"
 table = "t"
 index = "test"
 type = "t"
+shield_ddl = ""
 
-# Wildcard table rule, the wildcard table must be in source tables 
+# Wildcard table rule, the wildcard table must be in source tables
 # All tables which match the wildcard format will be synced to ES index `test` and type `t`.
 # In this example, all tables must have same schema with above table `t`;
 [[rule]]
@@ -82,7 +83,7 @@ table = "t_[0-9]{4}"
 index = "test"
 type = "t"
 
-# Simple field rule 
+# Simple field rule
 #
 # desc tfield;
 # +----------+--------------+------+-----+---------+-------+
@@ -102,12 +103,12 @@ type = "tfield"
 [rule.field]
 # Map column `id` to ES field `es_id`
 id="es_id"
-# Map column `tags` to ES field `es_tags` with array type 
+# Map column `tags` to ES field `es_tags` with array type
 tags="es_tags,list"
 # Map column `keywords` to ES with array type
 keywords=",list"
 
-# Filter rule 
+# Filter rule
 #
 # desc tfilter;
 # +-------+--------------+------+-----+---------+-------+
@@ -145,5 +146,5 @@ table = "tid_[0-9]{4}"
 index = "test"
 type = "t"
 # The es doc's id will be `id`:`tag`
-# It is useful for merge muliple table into one type while theses tables have same PK 
+# It is useful for merge muliple table into one type while theses tables have same PK
 id = ["id", "tag"]

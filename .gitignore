@@ -1,1 +1,4 @@
 bin
+.idea
+var
+go.sum

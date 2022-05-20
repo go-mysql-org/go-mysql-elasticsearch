@@ -32,6 +32,9 @@ type Rule struct {
 	// Elasticsearch pipeline
 	// To pre-process documents before indexing
 	Pipeline string `toml:"pipeline"`
+
+	// shield ddl command
+	ShieldDDL string `toml:"shield_ddl"`
 }
 
 func newDefaultRule(schema string, table string) *Rule {
@@ -82,4 +85,34 @@ func (r *Rule) CheckFilter(field string) bool {
 		}
 	}
 	return false
+}
+
+// CheckHasShieldCommands Check Has Shield commands
+func (r *Rule) CheckHasShieldCommands() bool {
+	return len(r.ShieldDDL) > 0
+}
+
+// CheckSkipShieldCommand check continue command
+func (r *Rule) CheckSkipShieldCommand(action string) bool {
+	if len(r.ShieldDDL) < 1 {
+		return false
+	}
+	// get command []string
+	shieldDDLs := r.getManyShieldCommands()
+	for _, v := range shieldDDLs {
+		// action == shieldDDL
+		if v == action {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Rule) getManyShieldCommands() []string {
+	// not have shield DDL command
+	if len(r.ShieldDDL) < 0 {
+		return []string{}
+	}
+	// command example delete,update
+	return strings.Split(r.ShieldDDL, ",")
 }

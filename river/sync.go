@@ -70,6 +70,12 @@ func (h *eventHandler) OnRow(e *canal.RowsEvent) error {
 		return nil
 	}
 
+	// check continue command
+	if rule.CheckSkipShieldCommand(e.Action) {
+		log.Infof("rules have continue ddl command , command event is (%v) , rows (%v)", e.Action, e.Rows)
+		return nil
+	}
+
 	var reqs []*elastic.BulkRequest
 	var err error
 	switch e.Action {
